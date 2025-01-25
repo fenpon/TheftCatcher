@@ -16,16 +16,7 @@ class detection:
             break
         detection.detect_from_frames(video_files)
         
-    def display_video(finDectionFrames):
-        for annotated_frame in finDectionFrames:
-                # 프레임을 화면에 표시 (옵션)
-                cv2.imshow("Frame", annotated_frame)
-                time.sleep(0.1)
-                if cv2.waitKey(1) & 0xFF == ord("q"):  # 'q' 키로 중지
-                    print("User exited.")
-                    cv2.destroyAllWindows()
-                    return "Detection interrupted by user."
-        cv2.destroyAllWindows()
+    
     def detect_from_frames(video_frames, labels=None, model_path="yolov8n.pt", output_dir="output_images"):
         """
         각 프레임(이미지)에 YOLO를 적용하여 객체를 탐지하고, 결과를 시각화하거나 저장합니다.
@@ -68,7 +59,47 @@ class detection:
                 #output_path = os.path.join(video_output_dir, f"frame_{frame_idx}.jpg")
                 #cv2.imwrite(output_path, annotated_frame)
             
-            detection.display_video(finDectionFrames)
+            #detection.display_video(finDectionFrames)
+            detection.save_detected_video(finDectionFrames)
         logging.info("--- Detection completed. ---")
         return True
+    ## 디버깅용 기능
+
+    # 프레임을 화면에 표시 (옵션)
+    def display_video(finDectionFrames):
+        for annotated_frame in finDectionFrames:
+                # 프레임을 화면에 표시 (옵션)
+                cv2.imshow("Frame", annotated_frame)
+                time.sleep(0.1)
+                if cv2.waitKey(1) & 0xFF == ord("q"):  # 'q' 키로 중지
+                    print("User exited.")
+                    cv2.destroyAllWindows()
+                    return "Detection interrupted by user."
+        cv2.destroyAllWindows()
+
+    def save_detected_video(frames, fps=30):
+        if not frames:
+            print("No frames to save.")
+            return
+
+        output_folder = "./detected_videos"
+
+        for i, video_frames in enumerate(frames):
+            video_filename = f"detected_video_{i}.mp4"
+            # Get the frame dimensions (height, width, channels)
+            height, width, channels = frames[0].shape
+
+            # Define the video codec and create VideoWriter object
+            video_path = f'{output_folder}/{video_filename}'
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
+            out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
+
+            # Write each frame to the video file
+            for frame in frames:
+                out.write(frame)
+
+            # Release the VideoWriter object
+            out.release()
+            print(f"Video saved at: {video_path}")
+        print("모든 Detected 비디오 저장완료")
 
