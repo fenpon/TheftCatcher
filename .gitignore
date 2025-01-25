@@ -1,3 +1,5 @@
 original/
 __pycache__/
+detected_videos/
+
 yolov8n.pt

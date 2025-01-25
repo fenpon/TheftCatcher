@@ -50,7 +50,7 @@ class original_data:
                 return None
 
             video_files =   original_data.video_to_frames(video_paths);
-            print(f"총 {len(video_paths)}개의 비디오 파일이 발견되었습니다: {video_paths}")
+            print(f"총 {len(video_paths)}개의 비디오 파일이 발견되었습니다")
             return video_files
 
         except Exception as e:  # Corrected the syntax here

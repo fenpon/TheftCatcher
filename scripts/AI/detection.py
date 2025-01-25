@@ -1,6 +1,8 @@
 import cv2
+import os
 import time
 import logging
+
 from ultralytics import YOLO
 class detection:
     def detect(video_blob_list):
@@ -12,7 +14,7 @@ class detection:
             video_files.append(frames)
             # 파일 내용 다운로드 예제
             
-            print(f"Video {blob.name}, size: {len(frames)} frames")
+            #print(f"Video {blob.name}, size: {len(frames)} frames")
             break
         detection.detect_from_frames(video_files)
         
@@ -60,7 +62,7 @@ class detection:
                 #cv2.imwrite(output_path, annotated_frame)
             
             #detection.display_video(finDectionFrames)
-            detection.save_detected_video(finDectionFrames)
+            detection.save_detected_video(finDectionFrames,video_idx)
         logging.info("--- Detection completed. ---")
         return True
     ## 디버깅용 기능
@@ -77,29 +79,33 @@ class detection:
                     return "Detection interrupted by user."
         cv2.destroyAllWindows()
 
-    def save_detected_video(frames, fps=30):
+    def save_detected_video(frames,video_idx, fps=30):
         if not frames:
             print("No frames to save.")
             return
 
         output_folder = "./detected_videos"
+        if not os.path.exists(output_folder):
+                print(f"Folder '{output_folder}' does not exist. Creating it now.")
+                os.makedirs(output_folder)  # Create the folder if it doesn't exist
+        else:
+                print(f"Folder '{output_folder}' already exists.")
+                
+        video_filename = f"detected_video_{video_idx}.mp4"
+        # Get the frame dimensions (height, width, channels)
+        height, width, channels = frames[0].shape
+        video_path = f"{output_folder}/{video_filename}"
+    
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
+        out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
 
-        for i, video_frames in enumerate(frames):
-            video_filename = f"detected_video_{i}.mp4"
-            # Get the frame dimensions (height, width, channels)
-            height, width, channels = frames[0].shape
+        # Write each frame to the video file
+        for frame in frames:
+            out.write(frame)
 
-            # Define the video codec and create VideoWriter object
-            video_path = f'{output_folder}/{video_filename}'
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
-            out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
-
-            # Write each frame to the video file
-            for frame in frames:
-                out.write(frame)
-
-            # Release the VideoWriter object
-            out.release()
-            print(f"Video saved at: {video_path}")
+        # Release the VideoWriter object
+        out.release()
+ 
+        print(f"Video saved at: {video_path}")
         print("모든 Detected 비디오 저장완료")
 
