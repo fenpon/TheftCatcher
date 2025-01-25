@@ -1,5 +1,6 @@
 original/
 __pycache__/
 detected_videos/
+bone_images/
 
 yolov8n.pt

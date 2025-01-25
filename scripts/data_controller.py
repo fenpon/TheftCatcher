@@ -1,11 +1,12 @@
 from azureml.core import Workspace, Dataset
 import os
 import cv2
+
 import numpy as np
 import tempfile
 import xml.etree.ElementTree as ET
 
-class original_data:
+class OriginalData:
     def download():
         try:
             folder_path = './original'
@@ -28,8 +29,10 @@ class original_data:
 
             dataset.download(target_path=folder_path, overwrite=False)
             print("원본 데이터 다운로드 완료")
+            return total_files
         except Exception as e:  # Corrected the syntax here
             print("원본 데이터 다운로드 실패:", e)
+            return 0
 
     def get_train_video():
         #원본데이터 ./original 폴더에서 가져옴
@@ -49,7 +52,7 @@ class original_data:
                 print(f"'{folder_path}' 폴더에 비디오 파일이 없습니다.")
                 return None
 
-            video_files =   original_data.video_to_frames(video_paths);
+            video_files =   OriginalData.video_to_frames(video_paths);
             print(f"총 {len(video_paths)}개의 비디오 파일이 발견되었습니다")
             return video_files
 
