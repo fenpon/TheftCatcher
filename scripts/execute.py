@@ -1,5 +1,5 @@
 from .data_controller import original_data
-from .AI.detection import detection
+from .AI.detection import Detection
 import os
 
 def train():
@@ -10,8 +10,8 @@ def train():
     else:
             print(f"Folder '{folder_path}' already exists.")
     train_videos =   original_data.get_train_video()
-    detection.detect_from_frames(train_videos)
-    print("훈련 시작 ")
+    Detection.detect_from_frames(train_videos)
+    print("훈련 완료 ")
     
 
     

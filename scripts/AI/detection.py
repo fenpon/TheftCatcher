@@ -2,69 +2,96 @@ import cv2
 import os
 import time
 import logging
+import pandas as pd
+import numpy as np
 
 from ultralytics import YOLO
-class detection:
+class Detection:
     def detect(video_blob_list):
         video_files = []
         # 비디오
         for i, blob in enumerate(video_blob_list):
             #print(blob.name)
-            frames = detection.video_to_frames(video_blob_list)
+            frames = Detection.video_to_frames(video_blob_list)
             video_files.append(frames)
             # 파일 내용 다운로드 예제
             
             #print(f"Video {blob.name}, size: {len(frames)} frames")
             break
-        detection.detect_from_frames(video_files)
+        Detection.detect_from_frames(video_files)
         
     
     def detect_from_frames(video_frames, labels=None, model_path="yolov8n.pt", output_dir="output_images"):
-        """
-        각 프레임(이미지)에 YOLO를 적용하여 객체를 탐지하고, 결과를 시각화하거나 저장합니다.
-        
-        :param video_frames: 각 비디오의 프레임 이미지들이 저장된 리스트
-                            예: [[frame1, frame2, ...], [frame1, frame2, ...], ...]
-        :param labels: (옵션) 특정 프레임에서 추가 정보를 표시하기 위한 라벨
-                    예: {0: {10: [{"type": "box", "xtl": 50, "ytl": 50, "xbr": 100, "ybr": 100, "label": "Person"}]}}
-        :param model_path: YOLO 모델 가중치 파일 경로
-        :param output_dir: 결과 이미지를 저장할 디렉터리 경로
-        """
-        #import os
-        #os.makedirs(output_dir, exist_ok=True)
+       
+            print("---- Object Detection 시작 ----")
+            # YOLO 모델 로드
+            model = YOLO(model_path)
 
-        # YOLO 모델 로드
-        model = YOLO(model_path)
-
-        for video_idx, frames in enumerate(video_frames):
-            #video_output_dir = os.path.join(output_dir, f"video_{video_idx}")
-            #os.makedirs(video_output_dir, exist_ok=True)
-            print(f"Processing video {video_idx + 1}/{len(video_frames)}...")
-            finDectionFrames = []
-            for frame_idx, frame in enumerate(frames):
-                # YOLO 객체 탐지 수행
-                results = model(frame)
-
-                # 결과를 프레임에 시각화
-                annotated_frame = results[0].plot()
-
-                # 라벨 정보가 있으면 추가로 시각화
-                if labels and video_idx in labels and frame_idx in labels[video_idx]:
-                    for label in labels[video_idx][frame_idx]:
-                        if label['type'] == 'box':
-                            xtl, ytl, xbr, ybr = label["xtl"], label["ytl"], label["xbr"], label["ybr"]
-                            cv2.rectangle(annotated_frame, (xtl, ytl), (xbr, ybr), color=(0, 255, 0), thickness=2)
-                            cv2.putText(annotated_frame, label["label"], (xtl, ytl - 10), 
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                finDectionFrames.append(annotated_frame)
-                # 저장
-                #output_path = os.path.join(video_output_dir, f"frame_{frame_idx}.jpg")
-                #cv2.imwrite(output_path, annotated_frame)
+            keys_with_person = 0
+            for key, value in model.names.items() :
+                if value == "person":
+                    keys_with_person = int(key)
+                    break
+            data_to_append = []
             
-            #detection.display_video(finDectionFrames)
-            detection.save_detected_video(finDectionFrames,video_idx)
-        logging.info("--- Detection completed. ---")
-        return True
+
+            for video_idx, frames in enumerate(video_frames):
+                #video_output_dir = os.path.join(output_dir, f"video_{video_idx}")
+                #os.makedirs(video_output_dir, exist_ok=True)
+                print(f"Processing Detection video : {video_idx + 1}/{len(video_frames)}...")
+                finDectionFrames = []
+                for frame_idx, frame in enumerate(frames):
+                    # YOLO 객체 탐지 수행
+                    results = model.predict(frame, verbose=False)
+                    
+                    for detection in results: #라벨링 수만큼 인덱스 같은 클래스 두개 감지되도 여긴 1개
+                        # 바운딩 박스, 신뢰도, 클래스 ID 가져오기
+                    
+                        confidences = detection.boxes.conf.cpu().numpy()  # 신뢰도 (NumPy 배열)
+                        boxes = detection.boxes.xyxy.cpu().numpy()  # 바운딩 박스 좌표 (NumPy 배열)
+                        classes = detection.boxes.cls.cpu().numpy().astype(int)  # 클래스 ID (NumPy 배열, 정수형 변환)
+                        person_mapping  = (classes == keys_with_person) # 클래스가 person인 결과만 사용
+                        final_mapping = person_mapping & (confidences > 0.7)# 신뢰도가 0.7 이상인 결과만 사용
+                
+                        confidences = confidences[final_mapping]
+
+                        if(len(confidences) == 0):
+                            continue
+                        boxes = boxes[final_mapping]
+                        classes = classes[final_mapping]
+                        for i, box in enumerate(boxes):
+                            x1, y1, x2, y2 = map(int, box)  # 바운딩 박스 좌표 (정수형 변환)
+                            cropped_image = frame[y1:y2, x1:x2]  # 바운딩 박스 영역만큼 이미지 자르기
+                            data_to_append.append({
+                                'video_idx': video_idx,
+                                'frame_idx': frame_idx,
+                                'detection_idx': i,
+                                'class': classes[i],
+                                'confidence': confidences[i],
+                                'x1': x1,
+                                'y1': y1,
+                                'x2': x2,
+                                'y2': y2,
+                                'cropped_image': cropped_image  # bounding Box 내의 이미지를 Crop하여 저장
+                            })
+                        # 결과 출력
+                        #print("바운딩 박스 (xyxy):\n", boxes)
+                        #print("신뢰도 (conf):\n", confidences)
+                        #if len(classes) != 1:
+                            #print("클래스 (cls):\n", classes)  # 클래스 ID는 정수형으로 변환
+
+            classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2', 'cropped_image'],data=data_to_append)
+            
+        
+
+
+            #print(classified_df)
+            Detection.save_detected_video(classified_df)
+            print("---- Object Detection 완료 ----")
+
+            return classified_df
+    
+        
     ## 디버깅용 기능
 
     # 프레임을 화면에 표시 (옵션)
@@ -79,33 +106,34 @@ class detection:
                     return "Detection interrupted by user."
         cv2.destroyAllWindows()
 
-    def save_detected_video(frames,video_idx, fps=30):
-        if not frames:
-            print("No frames to save.")
-            return
+    def save_detected_video(classified_df, fps=30):
+        unique_video_ids = classified_df['video_idx'].unique()      
 
-        output_folder = "./detected_videos"
-        if not os.path.exists(output_folder):
-                print(f"Folder '{output_folder}' does not exist. Creating it now.")
-                os.makedirs(output_folder)  # Create the folder if it doesn't exist
-        else:
-                print(f"Folder '{output_folder}' already exists.")
-                
-        video_filename = f"detected_video_{video_idx}.mp4"
-        # Get the frame dimensions (height, width, channels)
-        height, width, channels = frames[0].shape
-        video_path = f"{output_folder}/{video_filename}"
-    
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
-        out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
+        for video_id in unique_video_ids:
+            video_data = classified_df[classified_df['video_idx'] == video_id]
+            unique_class_ids = video_data['class'].unique()
 
-        # Write each frame to the video file
-        for frame in frames:
-            out.write(frame)
+            for class_id in unique_class_ids:
+                class_data = video_data[video_data['class'] == class_id]
+                unique_detection_ids = class_data['detection_idx'].unique()
 
-        # Release the VideoWriter object
-        out.release()
- 
-        print(f"Video saved at: {video_path}")
-        print("모든 Detected 비디오 저장완료")
+                for detection_id in unique_detection_ids:
+                    detection_data = class_data[class_data['detection_idx'] == detection_id]
+                    detection_data = detection_data.sort_values(by='frame_idx')
+                    
+                   
+                  
+                 
+                    output_folder = f"./detected_videos/{video_id}/{class_id}/{detection_id}"
+                    if not os.path.exists(output_folder):
+                        os.makedirs(output_folder)
+                   
+                    
+                    # 프레임 작성
+                    for i, row in detection_data.iterrows():
+                        frame = row['cropped_image']
+                        output_path =  f"{output_folder}/video_class_detection_{i}.jpg"
+                        cv2.imwrite(output_path, frame)
+
+        print(f"save video classified images")
 
