@@ -97,41 +97,47 @@ class OriginalData:
                         for track in root.findall("track"):  # 'track' 태그 탐색
                             #print(f"Track ID: {track.get('id')}, Label: {track.get('label')}, Source: {track.get('source')}")
                             
+                            apart_Data = []
                             # 'box' 태그 탐색
                             for box in track.findall("box"):
                                 frame = int(box.get('frame'))
-                                labels_data.append( {
-                                    "video_idx" : i,
-                                    "frame_idx" : frame,
-                                    "xtl" : round(float(box.get('xtl'))),
-                                    "ytl" : round(float(box.get('ytl'))),
-                                    "xbr" : round(float(box.get('xbr'))),
-                                    "ybr" : round(float(box.get('ybr'))),
-                                    "label" : track.get('label'),
-                                    "type" : "box"
-                                })
-                                
-                                
+                                now_row = {}
+                                now_row["video_idx"] = i
+                                now_row["frame_idx"] = frame
+                                now_row["xtl"] = round(float(box.get('xtl')))
+                                now_row["ytl"] = round(float(box.get('ytl')))
+                                now_row["xbr"] = round(float(box.get('xbr')))
+                                now_row["ybr"] = round(float(box.get('ybr')))
+                                now_row["label"] = track.get('label')
+                                now_row["type"] = "box"
+
+                                apart_Data.append(now_row)
+
+                            if len(apart_Data) > 0:
+                                labels_data.append(pd.DataFrame( apart_Data))   
                                 # 'attribute' 태그 탐색 사람의 정보가 있는데 쓸지 모르겠다. theft_start에만 있다.
                                 #for attribute in box.findall("attribute"):
                                     #print(f"    Attribute Name: {attribute.get('name')}, Value: {attribute.text.strip()}")
-                            
+                            apart_Data = []
                             for point in track.findall("points"):
                                 frame = int(point.get('frame'))
                                 points = point.get('points').split(",")
-                                labels_data.append({
-                                    "frame_idx" : frame,
-                                    "x" : round(float(points[0])/2),
-                                    "y" : round(float(points[1])/2),
-                                    "label" : track.get('label'),
-                                    "type" : "point"
-                                })
-                        
+                                now_row = {}
+                                now_row["video_idx"] = i
+                                now_row["frame_idx"] = frame
+                                now_row["x"] = round(float(points[0])/2)
+                                now_row["y"] = round(float(points[1])/2)
+                                now_row["label"] = track.get('label')
+                                now_row["type"] = "point"
+
+                                apart_Data.append(now_row)
+                            if len(apart_Data) > 0:
+                                labels_data.append(pd.DataFrame( apart_Data))  
                     except ET.ParseError as e:
                         print(f"Error parsing {file_name}: {e}")
                         continue
-        labels_df = pd.DataFrame(labels_data)
-        return labels_df
+   
+        return labels_data
                 
       
     #동영상을  배열 형식의 이미지로 변환
