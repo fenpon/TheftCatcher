@@ -2,9 +2,15 @@ from azureml.core import Workspace, Dataset
 import os
 import cv2
 
+import pandas as pd
 import numpy as np
 import tempfile
 import xml.etree.ElementTree as ET
+
+
+
+
+
 
 class OriginalData:
     def download():
@@ -59,6 +65,75 @@ class OriginalData:
         except Exception as e:  # Corrected the syntax here
             print("원본 데이터 불러오기 실패:", e)
             return None
+
+    #XML 파일을 읽어서 라벨을 가져옴  
+    def GetLabel():
+        print("원본 라벨 로컬에서 불러오기")
+        folder_path = './original/Training/label'
+        # Check if the folder exists
+        if not os.path.exists(folder_path):
+                print(f"폴더 '{folder_path}'이(가) 존재하지 않습니다.")
+                return None
+        # 폴더 내 모든 파일 읽어오기
+        all_files = os.listdir(folder_path)
+
+        # XML 파일 파싱
+        parsed_data = []
+        labels_data = []
+        for i,file_name in enumerate(all_files):
+            file_path = os.path.join(folder_path, file_name)
+            
+            # 파일이 XML 파일인지 확인
+            if os.path.isfile(file_path) and file_name.endswith(".xml"):
+                #print(f"Parsing XML file: {file_name}")
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    xml_content = file.read()
+                    try:
+                        root = ET.fromstring(xml_content)  # XML 데이터 파싱
+                        parsed_data.append(root)  # 루트 요소를 저장
+
+                        
+                        # XML 데이터 탐색 및 출력
+                        for track in root.findall("track"):  # 'track' 태그 탐색
+                            #print(f"Track ID: {track.get('id')}, Label: {track.get('label')}, Source: {track.get('source')}")
+                            
+                            # 'box' 태그 탐색
+                            for box in track.findall("box"):
+                                frame = int(box.get('frame'))
+                                labels_data.append( {
+                                    "video_idx" : i,
+                                    "frame_idx" : frame,
+                                    "xtl" : round(float(box.get('xtl'))),
+                                    "ytl" : round(float(box.get('ytl'))),
+                                    "xbr" : round(float(box.get('xbr'))),
+                                    "ybr" : round(float(box.get('ybr'))),
+                                    "label" : track.get('label'),
+                                    "type" : "box"
+                                })
+                                
+                                
+                                # 'attribute' 태그 탐색 사람의 정보가 있는데 쓸지 모르겠다. theft_start에만 있다.
+                                #for attribute in box.findall("attribute"):
+                                    #print(f"    Attribute Name: {attribute.get('name')}, Value: {attribute.text.strip()}")
+                            
+                            for point in track.findall("points"):
+                                frame = int(point.get('frame'))
+                                points = point.get('points').split(",")
+                                labels_data.append({
+                                    "frame_idx" : frame,
+                                    "x" : round(float(points[0])/2),
+                                    "y" : round(float(points[1])/2),
+                                    "label" : track.get('label'),
+                                    "type" : "point"
+                                })
+                        
+                    except ET.ParseError as e:
+                        print(f"Error parsing {file_name}: {e}")
+                        continue
+        labels_df = pd.DataFrame(labels_data)
+        return labels_df
+                
+      
     #동영상을  배열 형식의 이미지로 변환
     def video_to_frames(video_paths):
         result = []

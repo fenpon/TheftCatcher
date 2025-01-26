@@ -98,7 +98,7 @@ class Detection:
 
             #print(classified_df)
             Detection.save_detected_video(classified_df)
-            print("---- Object Detection 완료 ----")
+            print(f"---- Object Detection 완료 : ----  ")
 
             return classified_df
     

@@ -1,6 +1,6 @@
 import os
 import cv2
-
+import pandas as pd
 import mediapipe as mp
 
 # GPU 강제 실행 설정
@@ -15,6 +15,12 @@ mp_drawing = mp.solutions.drawing_utils
 #landmark_mapping = {idx: mp_pose.PoseLandmark(idx).name for idx in range(len(mp_pose.PoseLandmark))}
 print("Landmark Name ↔ Index Mapping:")
 
+# 팔 팔꿈치 손, 어깨에 해당하는 랜드마크를 관심 포인트로 설정
+point_of_interest = [
+    "LEFT_SHOULDER", "LEFT_ELBOW", "LEFT_WRIST",
+    "RIGHT_SHOULDER", "RIGHT_ELBOW", "RIGHT_WRIST"
+]
+
 class Bone:
     
     def CreateBone(detections_df,max_count):
@@ -25,7 +31,8 @@ class Bone:
         #'video_idx',  'detection_idx', 'class'
         
         grouped = detections_df.groupby(['video_idx', 'detection_idx', 'class'])
-        
+        landmark_data = []  # 랜드마크 데이터를 저장할 리스트
+
         with mp_pose.Pose(static_image_mode=False, model_complexity=2, enable_segmentation=False, min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             ii = 0  
             for (video_idx, detection_idx, cls), group  in grouped:
@@ -40,15 +47,23 @@ class Bone:
                     
                     results = pose.process(image_rgb)
                     if results.pose_landmarks:
-                        
-                        """
+                        new_row = row.to_dict()  # row를 딕셔너리로 변환
+                        #mediapipe의 landmark 좌표는 이미지 크기 비례해서 나옴 (정규화되어있음)
                         for idx, pose_landmark in enumerate(results.pose_landmarks.landmark):
                             # 랜드마크 이름 가져오기
-                            landmark_name = mp_pose.PoseLandmark(idx).value  # 이름 가져오기
-                            landmark_idx = mp_pose.PoseLandmark(idx).name  # 이름 가져오기
-                            print(f"Landmark {landmark_idx} ({landmark_name}): x={pose_landmark.x}, y={pose_landmark.y}, z={pose_landmark.z}, visibility={pose_landmark.visibility}")
+                            landmark_name = mp_pose.PoseLandmark(idx).name    # 이름 가져오기
+                           
+                            if landmark_name in point_of_interest:
+                                new_row[f'{landmark_name}_x'] = pose_landmark.x
+                                new_row[f'{landmark_name}_y'] = pose_landmark.y
+                                new_row[f'{landmark_name}_z'] = pose_landmark.z
+                                new_row[f'{landmark_name}_visibility'] = pose_landmark.visibility
+                        landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
+                                
+                            #landmark_idx = mp_pose.PoseLandmark(idx).name  # 이름 가져오기
+                            #print(f"Landmark {landmark_idx} ({landmark_name}): x={pose_landmark.x}, y={pose_landmark.y}, z={pose_landmark.z}, visibility={pose_landmark.visibility}")
                                
-                        """
+                        
                         
                         mp_drawing.draw_landmarks(
                                 image_rgb,  # 출력할 이미지
@@ -67,9 +82,9 @@ class Bone:
                     image_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
                     results = pose.process(image_rgb)
             """
-
-            result = []
-            return result
+            landmark_df = pd.DataFrame(landmark_data)
+            print(landmark_df)
+            return landmark_df
     
     def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame, fps=30):       
         output_folder = f"./bone_images/{video_idx}/{class_id}/{detection_idx}"

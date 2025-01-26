@@ -1,6 +1,7 @@
 from .data_controller import OriginalData
 from .AI.detection import Detection
 from .AI.bone import Bone
+from .AI.behavior import Behavior
 import json
 import time
 import os
@@ -40,11 +41,12 @@ def train():
     
     if not os.path.exists(folder_path):
             print(f"Folder '{folder_path}' does not exist. Creating it now.")
-            OriginalData.download()
+            OriginalData.download() #원본 데이터 다운로드
     else:
             print(f"Folder '{folder_path}' already exists.")
     
-    train_videos =   OriginalData.get_train_video()
+    train_videos =   OriginalData.get_train_video() #원본 데이터에서 학습용 비디오 가져옴
+    labels_df = OriginalData.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
     max_count = len(train_videos)
 
     end_time = time.time()  # 종료 시간 기록
@@ -52,16 +54,22 @@ def train():
     update_json(file_path, timeReport)  # JSON 파일 업데이트
 
     start_time = time.time()  # 시작 시간 기록
-    detections_df = Detection.detect_from_frames(train_videos)
+    detections_df = Detection.detect_from_frames(train_videos) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
     timeReport["detection"] = end_time - start_time  # 다운로드 시간 계산
     update_json(file_path, timeReport)  # JSON 파일 업데이트
 
   
     start_time = time.time()  # 시작 시간 기록
-    bones = Bone.CreateBone(detections_df,max_count)
+    bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
     end_time = time.time()  # 종료 시간 기록
     timeReport["bone"] = end_time - start_time  # 다운로드 시간 계산
+    update_json(file_path, timeReport)  # JSON 파일 업데이트
+
+    start_time = time.time()  # 시작 시간 기록
+    Behavior.learn(bones_df, labels_df)
+    end_time = time.time()  # 종료 시간 기록
+    timeReport["lstm"] = end_time - start_time  # 다운로드 시간 계산
     update_json(file_path, timeReport)  # JSON 파일 업데이트
 
     print("훈련 완료 ")
