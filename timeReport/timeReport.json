@@ -1,6 +1,9 @@
 {
-    "download": 4.011964321136475,
-    "detection": 8.345536708831787,
-    "bone": 93.31551790237427,
-    "lstm": 0
+    "download": 0.0,
+    "detection": 0.0,
+    "bone": 0.0,
+    "lstm": 0.0,
+    "detection_predict": 0.0,
+    "bone_predict": 0.0,
+    "lstm_predict": 0.0
 }

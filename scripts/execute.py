@@ -1,4 +1,4 @@
-from .data_controller import OriginalData
+from .data_controller import DataController
 from .AI.detection import Detection
 from .AI.bone import Bone
 from .AI.behavior import Behavior
@@ -32,7 +32,7 @@ def train():
     # JSON 파일 경로
     file_path = "./timeReport/timeReport.json"
 
-        # JSON 파일 읽기
+    # JSON 파일 읽기
     with open(file_path, "r") as file:
         timeReport = json.load(file)  # JSON 데이터를 Python 딕셔너리로 로드
 
@@ -41,12 +41,12 @@ def train():
     
     if not os.path.exists(folder_path):
             print(f"Folder '{folder_path}' does not exist. Creating it now.")
-            OriginalData.download() #원본 데이터 다운로드
+            DataController.download() #원본 데이터 다운로드
     else:
             print(f"Folder '{folder_path}' already exists.")
     
-    train_videos =   OriginalData.get_train_video() #원본 데이터에서 학습용 비디오 가져옴
-    labels_df = OriginalData.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
+    train_videos =   DataController.get_train_video() #원본 데이터에서 학습용 비디오 가져옴
+    labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
     max_count = len(train_videos)
 
     end_time = time.time()  # 종료 시간 기록
@@ -74,6 +74,28 @@ def train():
 
     print("훈련 완료 ")
     
+def predict(file_path):
+    # JSON 파일 경로
+    json_path = "./timeReport/timeReport.json"
 
+    # JSON 파일 읽기
+    with open(json_path, "r") as file:
+        timeReport = json.load(file)  # JSON 데이터를 Python 딕셔너리로 로드
+
+    video = DataController.get_video(file_path)
+    if video is None:
+        print("비디오 파일을 불러오는데 실패했습니다.")
+        return
     
-    #print('Training model with data:', datas)
+    start_time = time.time()  # 시작 시간 기록
+    detections_df = Detection.detect_from_frames(video,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+    end_time = time.time()  # 종료 시간 기록
+    timeReport["detection_predict"] = end_time - start_time  # 다운로드 시간 계산
+    update_json(file_path, timeReport)  # JSON 파일 업데이트
+
+    start_time = time.time()  # 시작 시간 기록
+    bones_df = Bone.CreateBone(detections_df,1,True) #영상에서 뼈대 추출
+    end_time = time.time()  # 종료 시간 기록
+    timeReport["bone_predict"] = end_time - start_time  # 다운로드 시간 계산
+    update_json(file_path, timeReport)  # JSON 파일 업데이트
+

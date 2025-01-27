@@ -22,7 +22,7 @@ class Detection:
         Detection.detect_from_frames(video_files)
         
     
-    def detect_from_frames(video_frames, labels=None, model_path="yolov8n.pt", output_dir="output_images"):
+    def detect_from_frames(video_frames, is_predict =False,labels=None, model_path="yolov8n.pt", output_dir="output_images"):
             #gpu 사용 설정 안되어 있음
             print("---- Object Detection 시작 ----")
             # YOLO 모델 로드
@@ -97,7 +97,7 @@ class Detection:
 
 
             #print(classified_df)
-            Detection.save_detected_video(classified_df)
+            Detection.save_detected_video(classified_df,is_predict)
             print(f"---- Object Detection 완료 : ----  ")
 
             return classified_df
@@ -117,7 +117,7 @@ class Detection:
                     return "Detection interrupted by user."
         cv2.destroyAllWindows()
 
-    def save_detected_video(classified_df, fps=30):
+    def save_detected_video(classified_df,is_predict, fps=30):
         unique_video_ids = classified_df['video_idx'].unique()      
 
         for video_id in unique_video_ids:
@@ -134,8 +134,10 @@ class Detection:
                     
                    
                   
-                 
-                    output_folder = f"./detected_videos/{video_id}/{class_id}/{detection_id}"
+                    if is_predict:
+                        output_folder = f"./detected_videos/predict/{video_id}/{class_id}/{detection_id}"
+                    else:
+                        output_folder = f"./detected_videos/laern/{video_id}/{class_id}/{detection_id}"
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                    

@@ -1,7 +1,6 @@
 from azureml.core import Workspace, Dataset
 import os
 import cv2
-
 import pandas as pd
 import numpy as np
 import tempfile
@@ -12,7 +11,7 @@ import xml.etree.ElementTree as ET
 
 
 
-class OriginalData:
+class DataController:
     def download():
         try:
             folder_path = './original'
@@ -58,14 +57,17 @@ class OriginalData:
                 print(f"'{folder_path}' 폴더에 비디오 파일이 없습니다.")
                 return None
 
-            video_files =   OriginalData.video_to_frames(video_paths);
+            video_files =   DataController.video_to_frames(video_paths);
             print(f"총 {len(video_paths)}개의 비디오 파일이 발견되었습니다")
             return video_files
 
         except Exception as e:  # Corrected the syntax here
             print("원본 데이터 불러오기 실패:", e)
             return None
-
+    def get_video(file_path):
+        result = DataController.video_to_frames([file_path])
+        return result
+        
     #XML 파일을 읽어서 라벨을 가져옴  
     def GetLabel():
         print("원본 라벨 로컬에서 불러오기")

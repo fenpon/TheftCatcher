@@ -2,5 +2,7 @@ original/
 __pycache__/
 detected_videos/
 bone_images/
+venv/
+
 
 yolov8n.pt

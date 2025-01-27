@@ -23,7 +23,7 @@ point_of_interest = [
 
 class Bone:
     
-    def CreateBone(detections_df,max_count):
+    def CreateBone(detections_df,max_count,is_predict = False):
         
 
         print("--- Bone 추출 시작 ---")
@@ -73,7 +73,7 @@ class Bone:
                                 mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)  # 연결선 스타일
                         )
 
-                        Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb)
+                        Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict)
                     else:
                         print(f"No pose landmarks found for frame_idx={row['frame_idx']}")
             print("---- Bone 추출 완료 ----")
@@ -86,8 +86,12 @@ class Bone:
             print(landmark_df)
             return landmark_df
     
-    def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame, fps=30):       
-        output_folder = f"./bone_images/{video_idx}/{class_id}/{detection_idx}"
+    def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict ,fps=30):    
+        if is_predict:
+            output_folder = f"./bone_images/predict/{video_idx}/{class_id}/{detection_idx}"
+        else:   
+            output_folder = f"./bone_images/learn/{video_idx}/{class_id}/{detection_idx}"
+            
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
