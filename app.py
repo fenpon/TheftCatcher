@@ -7,5 +7,6 @@ app = Flask(__name__)
 def get_data():
     return jsonify({'message': 'Hello!'})
 
-if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000)  # 로컬에서 실행
+if __name__ == "__main__":
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=8080)
