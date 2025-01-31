@@ -3,23 +3,26 @@ import cv2
 import pandas as pd
 import torch
 import torch.nn as nn
+from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
 point_of_interest = [
-    "LEFT_SHOULDER", "LEFT_ELBOW", "LEFT_WRIST",
-    "RIGHT_SHOULDER", "RIGHT_ELBOW", "RIGHT_WRIST"
+    "LEFT_SHOULDER_x", "LEFT_ELBOW_x", "LEFT_WRIST_x",
+    "RIGHT_SHOULDER_x", "RIGHT_ELBOW_x", "RIGHT_WRIST_x",
+    "LEFT_SHOULDER_y", "LEFT_ELBOW_y", "LEFT_WRIST_y",
+    "RIGHT_SHOULDER_y", "RIGHT_ELBOW_y", "RIGHT_WRIST_y",
+    "LEFT_SHOULDER_z", "LEFT_ELBOW_z", "LEFT_WRIST_z",
+    "RIGHT_SHOULDER_z", "RIGHT_ELBOW_z", "RIGHT_WRIST_z"
 ]
 
 
-input_dim = 512  # Example feature_dim from CNN
-hidden_dim = 256
-output_dim = 10  # 예측하려는 행동의 클래스 수 또는 feature 크기
-num_layers = 1
-batch_length = 8
+#한번에 학습할 샘플 개수
+batch_length = 18
 num_epochs = 20
 learning_rate = 0.001
+sliding_size = 18 # 몇프레임씩 읽어서 학습할건지 여부
 
 class SkeletonDataset(Dataset):
     def __init__(self, data, labels, max_len):
@@ -43,20 +46,29 @@ class SkeletonDataset(Dataset):
             x = x[:self.max_len]
 
         return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.long)
-# LSTM 모델 정의
-class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_classes):
-        super(LSTMModel, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
+
+
+class TransformerModel(nn.Module):
+    def __init__(self, input_dim, num_classes, num_heads=8, num_layers=6, dropout=0.1):
+        super(TransformerModel, self).__init__()
+        # input_dim = Self-Attention에서 각 토큰(프레임, 단어 등)의 특징을 표현하는 벡터 크기
+        #1프레임에서 18개의 특징점(x, y, z 좌표 등)을 제공한다면, input_dim = 18
+        
+        # num_heads는 Self-Attention을 몇 개의 독립적인 헤드(병렬 연산)로 나눌지 결정합니다
+        # input_dim를 num_heads 갯수 만큼 나눠 gpu에 보내서 처리하고 합치는 기능
+
+        # num_layers = Self-Attention 레이어의 개수
+        # input_dim 은 반드시 num_heads로 나누어 떨어져야 함
+        encoder_layers = TransformerEncoderLayer(d_model=input_dim, nhead=num_heads, dropout=dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
+        self.fc = nn.Linear(input_dim, num_classes)
 
     def forward(self, x):
-        # LSTM 통과
-        out, _ = self.lstm(x)  # out: (batch_size, seq_len, hidden_size)
-        out = out[:, -1, :]  # 마지막 시퀀스 출력 사용
-        out = self.fc(out)   # Fully connected layer
-        return out
-    
+        x = self.transformer_encoder(x)  # (batch, seq_len, input_dim)
+        #x = x.mean(dim=1)  # 평균 풀링
+        x = self.fc(x)
+        return x
+
 class Behavior:
     # 하이퍼파라미터 설정
     # 하이퍼파라미터 설정
@@ -70,7 +82,7 @@ class Behavior:
         
         ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
         _filter_theft_frames = Behavior.filter_theft_frames(learn_images, learn_labels)
-
+        #print(_filter_theft_frames.columns)
       
         ## 분리한 절도 영상 프레임들을 다들 같은 길이로 맞쳐주는 기능
         #예 : 입력 : [3, 4, 5] , [1, 2, 3, 4, 5, 6, 7]
@@ -79,58 +91,83 @@ class Behavior:
         #packed = pack_padded_sequence(inputs, lengths, batch_first=True, enforce_sorted=False)
 
 
-        # 데이터 준비
-        max_len = 50  # 시퀀스 최대 길이
+     
 
         x = []
         y = []
-        for df in _filter_theft_frames:
+        
+        for now in _filter_theft_frames:
+            start = now['start']
+            end = now['end']
+            ## 절도 행동을 60프레임의 중앙에 배치하는 슬라이딩 윈도 생성
+            sliding_start,sliding_end = Behavior.center_range_with_wrap(start,end,sliding_size)
+            learn_images.loc[start:end,'label'] = now['label']
+            sliding_imgs = learn_images[sliding_start:sliding_end+1]
+            
+            #print(sliding_imgs)
             # 좌표 데이터 추출 (frames, features)
-            features = df[['LEFT_SHOULDER_x', 'LEFT_SHOULDER_y', 'LEFT_SHOULDER_z']].to_numpy()
+            features = sliding_imgs[point_of_interest].to_numpy()
             x.append(features)  # x에 추가
 
             # 레이블 추출 (샘플당 하나의 레이블로 고정)
-            sample_label = df['label'].iloc[0]  # 첫 번째 레이블 사용
+            sample_label = sliding_imgs['label'].to_numpy()  # 첫 번째 레이블 사용
             y.append(sample_label)
 
+   
+        print(y)
         #MKLDNN은 고속 CPU 처리를 지원하는 라이브러리인데 GPU 환경에선 필요없음.
         torch.backends.mkldnn.enabled = False
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f'device : {device}')
-        dataset = SkeletonDataset(x, y, max_len)
+        dataset = SkeletonDataset(x, y, len(point_of_interest))
+
+        # 사용할 데이터셋 (PyTorch Dataset 객체)
         dataloader = DataLoader(dataset, batch_size=batch_length, shuffle=True)
+        # pin_memory,    # GPU로 빠르게 로드할지 여부
 
         # 모델 초기화
-        input_size = 3  # x, y, z 좌표 /한 프레임에서 제공되는 특징 수
-        hidden_size = 128
-        num_layers = 2
-        num_classes = 5
-        model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
-                
+        input_size = 18  
+        num_classes = 3  # 행동 클래스 수 :없음, theft_start, theft_end
+        #model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
+        max_len = 180  # 시퀀스 최대 길이
+        model = TransformerModel(input_dim=input_size,num_heads=6, num_classes=3)       
 
         # 손실 함수와 옵티마이저 정의
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
        
         model.to(device)
             
-        print(_filter_theft_frames)
-        max_len = 180  # 시퀀스 최대 길이
+       
+       
 
-        num_epochs = 20
+     
         print("-- 훈련 시작 ---")
         for epoch in range(num_epochs):
             print(f"-- Epochs : {epoch} ---")
             model.train()
             total_loss = 0
+
+            #모든 데이터셋을 순환하지만 GPU에 배치 크기 별로 넣어서 학습하는 방식
             for inputs, targets in dataloader:
                 # 입력과 정답 레이블을 장치로 이동
                 inputs, targets = inputs.to(device), targets.to(device)
-                print(f"입력 데이터 크기: {inputs.shape}")  # 예상: (batch_size, seq_len, input_size)
-                print(f"타겟 데이터 크기: {targets.shape}")  # 예상: (batch_size,)
+                print(f"입력 데이터 크기: {inputs.shape}")  # 예상: 특징 수  batch_length ,input_size , = [8, 18, 18]
+                print(f"타겟 데이터 크기: {targets.shape}")  # 예상:  = [8, 18]
 
                 # 순전파
                 outputs = model(inputs)
+
+                #criterion 의 형식이  outputs  : (N, num_classes)
+                #targets : (N,) 이므로  
+                #지원 차수가 부족하여 N은 batch_size × seq_len으로 변경해야 함.
+
+                outputs = outputs.view(-1, num_classes) 
+                targets = targets.view(-1).long()  
+
+                #print(f"Reshaped outputs shape: {outputs.shape}")  # 예상: (144, 3)
+                #print(f"Reshaped targets shape: {targets.shape}")  # 예상: (144,)
+
                 loss = criterion(outputs, targets)
 
                 # 역전파 및 최적화
@@ -145,6 +182,23 @@ class Behavior:
                 
         print("--- 행동 예측 완료 ---")   
 
+    ## 절도 행동을 60프레임의 중앙에 배치하는 슬라이딩 윈도 생성
+    def center_range_with_wrap(start, end, array_size=60, wrap_limit=180):
+        shift = (array_size - (end-start)) // 2
+        new_start = start - shift
+        new_end = end + shift
+        # 초과분 반대쪽으로 연장 처리
+        if new_start < 0:
+            overflow = abs(new_start)
+            new_start = 0
+            new_end += overflow  # 초과된 부분을 끝쪽으로 추가
+
+        if new_end >= wrap_limit:
+            overflow = new_end - (wrap_limit - 1)
+            new_end = wrap_limit - 1
+            new_start -= overflow  # 초과된 부분을 시작 부분으로 보정
+
+        return new_start,new_end
         
     ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
     def filter_theft_frames(learn_images, learn_labels):
@@ -155,27 +209,15 @@ class Behavior:
         for group in learn_labels:
             filtered_df = group[group['type'] == 'box']
             for label_idx , labeling in enumerate( labelings):
-                labeling_frames = filtered_df.loc[filtered_df['label'] == labeling]
-                apart_data = pd.DataFrame()
-                for _, row in labeling_frames.iterrows():
-                    # 각 그룹에서 start와 end의 frame_idx 추출
-                    #start_frame_idx = start_frame.iloc[0]  # 첫 번째 시작 프레임
-                    #end_frame_idx = end_frame.iloc[0]      # 첫 번째 종료 프레임
-                    # start와 end frame_idx 사이에 해당하는 learn_images의 row 추출
-                    labeling_frame_idx = row['frame_idx']
-                    labeling_video_idx = row['video_idx']
-                    #print(labeling_video_idx)
+                labeling_frames = filtered_df[
+                    (filtered_df['label'] == labeling) &
+                    (filtered_df['video_idx'].notnull()) 
+                ]
+                if not labeling_frames.empty:
+                    min_frame_row = labeling_frames.loc[labeling_frames['frame_idx'].idxmin()]
+                    max_frame_row = labeling_frames.loc[labeling_frames['frame_idx'].idxmax()]
 
-                    frames_between = learn_images.loc[
-                        (learn_images['video_idx'] == labeling_video_idx) &
-                        (learn_images['frame_idx'] == labeling_frame_idx)
-                    ].copy()  
-                    frames_between['label'] = label_idx + 1
-                    apart_data = pd.concat([apart_data,frames_between])
-                if len(apart_data) > 0:
-                    conversion_frames.append(apart_data)
-
-
-                
+                    conversion_frames.append({'video_idx':min_frame_row['video_idx'],'start':min_frame_row['frame_idx'],'end':max_frame_row['frame_idx'],'label':label_idx+1})
+ 
         return conversion_frames
         

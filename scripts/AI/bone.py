@@ -58,6 +58,7 @@ class Bone:
                                 new_row[f'{landmark_name}_y'] = pose_landmark.y
                                 new_row[f'{landmark_name}_z'] = pose_landmark.z
                                 new_row[f'{landmark_name}_visibility'] = pose_landmark.visibility
+                                new_row['label'] = 0
                         landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
                                 
                             #landmark_idx = mp_pose.PoseLandmark(idx).name  # 이름 가져오기
@@ -77,11 +78,7 @@ class Bone:
                     else:
                         print(f"No pose landmarks found for frame_idx={row['frame_idx']}")
             print("---- Bone 추출 완료 ----")
-            """  
-            with mp_pose.Pose(static_image_mode=True, model_complexity=2, enable_segmentation=False) as pose:
-                    image_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
-                    results = pose.process(image_rgb)
-            """
+          
             landmark_df = pd.DataFrame(landmark_data)
             print(landmark_df)
             return landmark_df

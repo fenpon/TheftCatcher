@@ -69,7 +69,7 @@ def train():
     start_time = time.time()  # 시작 시간 기록
     Behavior.learn(bones_df, labels_df)
     end_time = time.time()  # 종료 시간 기록
-    timeReport["lstm"] = end_time - start_time  # 다운로드 시간 계산
+    timeReport["behavior"] = end_time - start_time  # 다운로드 시간 계산
     update_json(file_path, timeReport)  # JSON 파일 업데이트
 
     print("훈련 완료 ")
