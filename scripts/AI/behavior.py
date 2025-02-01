@@ -12,9 +12,7 @@ point_of_interest = [
     "LEFT_SHOULDER_x", "LEFT_ELBOW_x", "LEFT_WRIST_x",
     "RIGHT_SHOULDER_x", "RIGHT_ELBOW_x", "RIGHT_WRIST_x",
     "LEFT_SHOULDER_y", "LEFT_ELBOW_y", "LEFT_WRIST_y",
-    "RIGHT_SHOULDER_y", "RIGHT_ELBOW_y", "RIGHT_WRIST_y",
-    "LEFT_SHOULDER_z", "LEFT_ELBOW_z", "LEFT_WRIST_z",
-    "RIGHT_SHOULDER_z", "RIGHT_ELBOW_z", "RIGHT_WRIST_z"
+    "RIGHT_SHOULDER_y", "RIGHT_ELBOW_y", "RIGHT_WRIST_y"
 ]
 
 # 모델 초기화
@@ -22,8 +20,8 @@ input_size = 180
 num_classes = 3  # 행동 클래스 수 :없음, theft_start, theft_end
 #한번에 학습할 샘플 개수
 batch_length = 18
-num_epochs = 20
-learning_rate = 0.001
+num_epochs = 30
+learning_rate = 0.0005 #학습률
 
 class SkeletonDataset(Dataset):
     def __init__(self, data, labels, max_len):
@@ -50,36 +48,59 @@ class SkeletonDataset(Dataset):
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, input_dim, num_classes, num_heads=8, num_layers=6, dropout=0.1):
+    def __init__(self, input_dim, num_classes, num_heads=4, num_layers=2, model_dim=64, dropout=0.1):
         super(TransformerModel, self).__init__()
-        # input_dim = Self-Attention에서 각 토큰(프레임, 단어 등)의 특징을 표현하는 벡터 크기
-        #1프레임에서 18개의 특징점(x, y, z 좌표 등)을 제공한다면, input_dim = 18
-        
-        # num_heads는 Self-Attention을 몇 개의 독립적인 헤드(병렬 연산)로 나눌지 결정합니다
-        # input_dim를 num_heads 갯수 만큼 나눠 gpu에 보내서 처리하고 합치는 기능
 
-        # num_layers = Self-Attention 레이어의 개수
-        # input_dim 은 반드시 num_heads로 나누어 떨어져야 함
-        encoder_layers = TransformerEncoderLayer(d_model=input_dim, nhead=num_heads, dropout=dropout)
+        # 1️⃣ 입력 차원(input_dim) → Transformer 모델 차원(model_dim)으로 변환
+        self.embedding = nn.Linear(input_dim, model_dim)  # (seq_length, input_dim) -> (seq_length, model_dim)
+
+        # 2️⃣ Transformer Encoder 설정
+        encoder_layers = TransformerEncoderLayer(d_model=model_dim, nhead=num_heads, dropout=dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
-        self.fc = nn.Linear(input_dim, num_classes)
+
+        # 3️⃣ 분류를 위한 Fully Connected Layer
+        self.fc = nn.Linear(model_dim, num_classes)  # (batch, model_dim) -> (batch, num_classes)
 
     def forward(self, x):
-        x = self.transformer_encoder(x)  # (batch, seq_len, input_dim)
-        #x = x.mean(dim=1)  # 평균 풀링
-        x = self.fc(x)
+        """
+        x: (seq_length, input_dim)
+        """
+        print("Before embedding shape:", x.shape)  # (batch, seq_length, input_dim)
+        
+        x = self.embedding(x)  # (batch, seq_length, model_dim)
+        print("After embedding shape:", x.shape)
+
+        # ✅ Transformer는 (seq_length, batch, model_dim) 형식 필요 → permute 사용
+        x = x.permute(1, 0, 2)  # (batch, seq_length, model_dim) -> (seq_length, batch, model_dim)
+        print("After permute shape:", x.shape)  # (seq_length, batch, model_dim)
+
+        x = self.transformer_encoder(x)  # (seq_length, batch, model_dim)
+        print("After Transformer shape:", x.shape)
+
+        x = x.mean(dim=0)  # 평균 풀링 (batch, model_dim)
+        print("After pooling shape:", x.shape)  # (batch, model_dim)
+
+        x = self.fc(x)  # (batch, num_classes)
+        print("Final output shape:", x.shape)  # (batch, num_classes)
+        return x
         return x
 
+
+    
 class Behavior:
     # 하이퍼파라미터 설정
     # 하이퍼파라미터 설정
     
-    def predict(predict_images):
+    def predict(predict_images,test_labels):
         print("--- 행동 예측 시작 ---")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = Behavior.load(device)
         print(predict_images)
         grouped = predict_images.groupby(['video_idx', 'detection_idx']) 
+
+
+        ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
+        
 
         x = []
         for idx, group in grouped:
@@ -111,7 +132,12 @@ class Behavior:
 
         result = probabilities.cpu().numpy()
      
-        print(result)
+        _filter_theft_frames = Behavior.filter_theft_frames(predict_images, test_labels)
+        for now in _filter_theft_frames:
+            start = now['start']
+            end = now['end']
+            predict_images.loc[start:end,'label'] = now['label']
+            print(result[0][start:end])
         print("--- ✅ 행동 예측 완료 ---")
         return result
       
@@ -181,16 +207,16 @@ class Behavior:
         
         #model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
         max_len = 180  # 시퀀스 최대 길이
-        model = TransformerModel(input_dim=len(point_of_interest),num_heads=6, num_classes=3)       
+        model = TransformerModel(input_dim=len(point_of_interest),num_heads=16, num_classes=3)       
 
         # 손실 함수와 옵티마이저 정의
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=0.0001)
        
         model.to(device)
             
        
-       
+        first_fc_weights = model.fc.weight.clone().detach().cpu().numpy()  # 초기 FC 레이어 가중치 저장
 
      
         print("-- 훈련 시작 ---")
@@ -200,35 +226,44 @@ class Behavior:
             total_loss = 0
 
             #모든 데이터셋을 순환하지만 GPU에 배치 크기 별로 넣어서 학습하는 방식
-            for inputs, targets in dataloader:
+            for batch_idx ,( inputs, targets) in enumerate(dataloader):
+                
                 # 입력과 정답 레이블을 장치로 이동
                 inputs, targets = inputs.to(device), targets.to(device)
-                print(f"입력 데이터 크기: {inputs.shape}")  # 예상: 특징 수  batch_length ,input_size , = [2, 18, 180]
-                print(f"타겟 데이터 크기: {targets.shape}")  # 예상:  = [2, 180]
+            
+                print(f"입력 데이터 : {inputs}")  # 예상: 특징 수  batch_length ,input_size , = [2, 18, 180]
+                print(f"타겟 데이터 : {targets}")  # 예상:  = [2, 180]
 
-                
-                # 순전파
-                
-                outputs = model(inputs)
-                   
+                    
+                    # 순전파
+                    
+                output = model(inputs)
+                    
 
-                #criterion 의 형식이  outputs  : (N, num_classes)
-                #targets : (N,) 이므로  
-                #지원 차수가 부족하여 N은 batch_size × seq_len으로 변경해야 함.
-                outputs = outputs.view(-1, num_classes) 
-                targets = targets.view(-1).long()  
+                    #criterion 의 형식이  outputs  : (N, num_classes)
+                    #targets : (N,) 이므로  
+                    #지원 차수가 부족하여 N은 batch_size × seq_len으로 변경해야 함.
+              
+                print(output)
+                print(f"Reshaped outputs shape: {output.shape}")  # 예상: (144, 3)
+                    #print(f"Reshaped targets shape: {targets.shape}")  # 예상: (144,)
 
-                print(f"Reshaped outputs shape: {outputs.shape}")  # 예상: (144, 3)
-                #print(f"Reshaped targets shape: {targets.shape}")  # 예상: (144,)
+                loss = criterion(output, targets)
 
-                loss = criterion(outputs, targets)
-
-                # 역전파 및 최적화
+                    # 역전파 및 최적화
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 total_loss += loss.item()
+
+                current_fc_weights = model.fc.weight.clone().detach().cpu().numpy()
+                weight_change = np.abs(current_fc_weights - first_fc_weights).sum()
+                print(f"🔄 FC 레이어 가중치 변화량 (Batch {batch_idx}): {weight_change} / loss : {total_loss}")
+
+                # 가중치 업데이트된 경우 새로운 값으로 갱신
+                first_fc_weights = current_fc_weights
+
         
         Behavior.save(model.state_dict())
         # 모델 가중치만 저장 (추천)
@@ -248,7 +283,7 @@ class Behavior:
 
         # 모델 초기화 (입력 크기 및 클래스 개수 설정)
         
-        model = TransformerModel(input_dim=len(point_of_interest),num_heads=6, num_classes=3)      
+        model = TransformerModel(input_dim=len(point_of_interest),num_heads=16, num_classes=3)      
         model.load_state_dict(torch.load(model_path, map_location=device))
         model.to(device)
         model.eval()  # 모델을 평가 모드로 설정

@@ -86,7 +86,8 @@ def predict(file_path):
     if video is None:
         print("비디오 파일을 불러오는데 실패했습니다.")
         return
-    
+    labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
+
     start_time = time.time()  # 시작 시간 기록
     detections_df = Detection.detect_from_frames(video,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
@@ -100,7 +101,7 @@ def predict(file_path):
     update_json(json_path, timeReport)  # JSON 파일 업데이트
 
     start_time = time.time()  # 시작 시간 기록
-    prediction = Behavior.predict(bones_df)
+    prediction = Behavior.predict(bones_df,labels_df)
     end_time = time.time()  # 종료 시간 기록
     timeReport["behavior_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
