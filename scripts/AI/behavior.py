@@ -17,12 +17,13 @@ point_of_interest = [
     "RIGHT_SHOULDER_z", "RIGHT_ELBOW_z", "RIGHT_WRIST_z"
 ]
 
-
+# 모델 초기화
+input_size = 180  
+num_classes = 3  # 행동 클래스 수 :없음, theft_start, theft_end
 #한번에 학습할 샘플 개수
 batch_length = 18
 num_epochs = 20
 learning_rate = 0.001
-sliding_size = 18 # 몇프레임씩 읽어서 학습할건지 여부
 
 class SkeletonDataset(Dataset):
     def __init__(self, data, labels, max_len):
@@ -77,7 +78,7 @@ class Behavior:
         print("--- 행동 예측 시작 ---")
      
         print(learn_images.columns)
-        
+      
 
         
         ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
@@ -97,40 +98,53 @@ class Behavior:
         y = []
         
         for now in _filter_theft_frames:
+            
+
             start = now['start']
             end = now['end']
             ## 절도 행동을 60프레임의 중앙에 배치하는 슬라이딩 윈도 생성
-            sliding_start,sliding_end = Behavior.center_range_with_wrap(start,end,sliding_size)
+            #sliding_start,sliding_end = Behavior.center_range_with_wrap(start,end,sliding_size)
             learn_images.loc[start:end,'label'] = now['label']
-            sliding_imgs = learn_images[sliding_start:sliding_end+1]
-            
-            #print(sliding_imgs)
-            # 좌표 데이터 추출 (frames, features)
-            features = sliding_imgs[point_of_interest].to_numpy()
-            x.append(features)  # x에 추가
+            #sliding_imgs = learn_images[sliding_start:sliding_end+1]
+
+        grouped = learn_images.groupby(['video_idx', 'detection_idx']) 
+        for idx, group in grouped:
+            features = np.zeros((input_size, len(point_of_interest)))  # (180, feature 개수)
+            labels = np.zeros(input_size)  # (180,)
+
+            group = group.set_index('frame_idx')  # frame_idx를 인덱스로 설정
+            valid_idx = group.index.intersection(range(input_size))  # 0~179 범위 내 frame_idx 선택
+    
+           
+             # 데이터 채우기
+            features[valid_idx] = group.loc[valid_idx, point_of_interest].values  # feature 데이터 채우기
+            labels[valid_idx] = group.loc[valid_idx, 'label'].values  # label 채우기
+
+            x.append(features)
+            y.append(labels)  # 레이블 저장
+
+            print(features)
+            print(labels)
 
             # 레이블 추출 (샘플당 하나의 레이블로 고정)
-            sample_label = sliding_imgs['label'].to_numpy()  # 첫 번째 레이블 사용
-            y.append(sample_label)
-
+        
    
-        print(y)
+        print(np.array(x).shape)
+        print(np.array(y).shape)
         #MKLDNN은 고속 CPU 처리를 지원하는 라이브러리인데 GPU 환경에선 필요없음.
         torch.backends.mkldnn.enabled = False
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f'device : {device}')
-        dataset = SkeletonDataset(x, y, len(point_of_interest))
+        dataset = SkeletonDataset(x, y, input_size)
 
         # 사용할 데이터셋 (PyTorch Dataset 객체)
         dataloader = DataLoader(dataset, batch_size=batch_length, shuffle=True)
         # pin_memory,    # GPU로 빠르게 로드할지 여부
 
-        # 모델 초기화
-        input_size = 18  
-        num_classes = 3  # 행동 클래스 수 :없음, theft_start, theft_end
+        
         #model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
         max_len = 180  # 시퀀스 최대 길이
-        model = TransformerModel(input_dim=input_size,num_heads=6, num_classes=3)       
+        model = TransformerModel(input_dim=len(point_of_interest),num_heads=6, num_classes=3)       
 
         # 손실 함수와 옵티마이저 정의
         criterion = nn.CrossEntropyLoss()
@@ -152,20 +166,22 @@ class Behavior:
             for inputs, targets in dataloader:
                 # 입력과 정답 레이블을 장치로 이동
                 inputs, targets = inputs.to(device), targets.to(device)
-                print(f"입력 데이터 크기: {inputs.shape}")  # 예상: 특징 수  batch_length ,input_size , = [8, 18, 18]
-                print(f"타겟 데이터 크기: {targets.shape}")  # 예상:  = [8, 18]
+                print(f"입력 데이터 크기: {inputs.shape}")  # 예상: 특징 수  batch_length ,input_size , = [2, 18, 180]
+                print(f"타겟 데이터 크기: {targets.shape}")  # 예상:  = [2, 180]
 
+                
                 # 순전파
+                
                 outputs = model(inputs)
+                   
 
                 #criterion 의 형식이  outputs  : (N, num_classes)
                 #targets : (N,) 이므로  
                 #지원 차수가 부족하여 N은 batch_size × seq_len으로 변경해야 함.
-
                 outputs = outputs.view(-1, num_classes) 
                 targets = targets.view(-1).long()  
 
-                #print(f"Reshaped outputs shape: {outputs.shape}")  # 예상: (144, 3)
+                print(f"Reshaped outputs shape: {outputs.shape}")  # 예상: (144, 3)
                 #print(f"Reshaped targets shape: {targets.shape}")  # 예상: (144,)
 
                 loss = criterion(outputs, targets)
