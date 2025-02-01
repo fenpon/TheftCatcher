@@ -77,7 +77,7 @@ def train():
 def predict(file_path):
     # JSON 파일 경로
     json_path = "./timeReport/timeReport.json"
-
+    
     # JSON 파일 읽기
     with open(json_path, "r") as file:
         timeReport = json.load(file)  # JSON 데이터를 Python 딕셔너리로 로드
@@ -91,11 +91,17 @@ def predict(file_path):
     detections_df = Detection.detect_from_frames(video,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
     timeReport["detection_predict"] = end_time - start_time  # 다운로드 시간 계산
-    update_json(file_path, timeReport)  # JSON 파일 업데이트
+    update_json(json_path, timeReport)  # JSON 파일 업데이트
 
     start_time = time.time()  # 시작 시간 기록
     bones_df = Bone.CreateBone(detections_df,1,True) #영상에서 뼈대 추출
     end_time = time.time()  # 종료 시간 기록
     timeReport["bone_predict"] = end_time - start_time  # 다운로드 시간 계산
-    update_json(file_path, timeReport)  # JSON 파일 업데이트
+    update_json(json_path, timeReport)  # JSON 파일 업데이트
+
+    start_time = time.time()  # 시작 시간 기록
+    prediction = Behavior.predict(bones_df)
+    end_time = time.time()  # 종료 시간 기록
+    timeReport["behavior_predict"] = end_time - start_time  # 다운로드 시간 계산
+    update_json(json_path, timeReport)  # JSON 파일 업데이트
 

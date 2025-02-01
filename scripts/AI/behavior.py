@@ -73,7 +73,48 @@ class TransformerModel(nn.Module):
 class Behavior:
     # 하이퍼파라미터 설정
     # 하이퍼파라미터 설정
-   
+    
+    def predict(predict_images):
+        print("--- 행동 예측 시작 ---")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = Behavior.load(device)
+        print(predict_images)
+        grouped = predict_images.groupby(['video_idx', 'detection_idx']) 
+
+        x = []
+        for idx, group in grouped:
+            features = np.zeros((input_size, len(point_of_interest)))  # (180, feature 개수)
+            labels = np.zeros(input_size)  # (180,)
+
+            group = group.set_index('frame_idx')  # frame_idx를 인덱스로 설정
+            valid_idx = group.index.intersection(range(input_size))  # 0~179 범위 내 frame_idx 선택     
+             # 데이터 채우기
+            features[valid_idx] = group.loc[valid_idx, point_of_interest].values  # feature 데이터 채우기
+
+            x.append(features)
+            print(features)
+
+
+            # 레이블 추출 (샘플당 하나의 레이블로 고정)
+        
+        x = np.array(x)  # 리스트를 numpy 배열로 변환
+        print(f"입력 데이터 변환 완료: {x.shape}")
+
+        # 모델 예측 실행
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
+        with torch.no_grad():  # 그래디언트 연산 방지
+            predictions = model(x_tensor)
+        print(np.array(x).shape)
+
+        # Softmax 적용하여 확률 변환
+        probabilities = torch.nn.functional.softmax(predictions, dim=1)
+
+        result = probabilities.cpu().numpy()
+     
+        print(result)
+        print("--- ✅ 행동 예측 완료 ---")
+        return result
+      
     def learn(learn_images, learn_labels):
         print("--- 행동 예측 시작 ---")
      
@@ -98,14 +139,10 @@ class Behavior:
         y = []
         
         for now in _filter_theft_frames:
-            
-
             start = now['start']
             end = now['end']
-            ## 절도 행동을 60프레임의 중앙에 배치하는 슬라이딩 윈도 생성
-            #sliding_start,sliding_end = Behavior.center_range_with_wrap(start,end,sliding_size)
             learn_images.loc[start:end,'label'] = now['label']
-            #sliding_imgs = learn_images[sliding_start:sliding_end+1]
+
 
         grouped = learn_images.groupby(['video_idx', 'detection_idx']) 
         for idx, group in grouped:
@@ -128,7 +165,7 @@ class Behavior:
 
             # 레이블 추출 (샘플당 하나의 레이블로 고정)
         
-   
+    
         print(np.array(x).shape)
         print(np.array(y).shape)
         #MKLDNN은 고속 CPU 처리를 지원하는 라이브러리인데 GPU 환경에선 필요없음.
@@ -193,29 +230,36 @@ class Behavior:
 
                 total_loss += loss.item()
         
+        Behavior.save(model.state_dict())
+        # 모델 가중치만 저장 (추천)
         
-        
+
                 
         print("--- 행동 예측 완료 ---")   
-
-    ## 절도 행동을 60프레임의 중앙에 배치하는 슬라이딩 윈도 생성
-    def center_range_with_wrap(start, end, array_size=60, wrap_limit=180):
-        shift = (array_size - (end-start)) // 2
-        new_start = start - shift
-        new_end = end + shift
-        # 초과분 반대쪽으로 연장 처리
-        if new_start < 0:
-            overflow = abs(new_start)
-            new_start = 0
-            new_end += overflow  # 초과된 부분을 끝쪽으로 추가
-
-        if new_end >= wrap_limit:
-            overflow = new_end - (wrap_limit - 1)
-            new_end = wrap_limit - 1
-            new_start -= overflow  # 초과된 부분을 시작 부분으로 보정
-
-        return new_start,new_end
+    
+    def load(device):
+        """저장된 모델을 불러오는 함수"""
+        model_path = "./data_files/model/theft_detection_model.pth"
         
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"❌ 저장된 모델 파일을 찾을 수 없습니다: {model_path}")
+
+        
+
+        # 모델 초기화 (입력 크기 및 클래스 개수 설정)
+        
+        model = TransformerModel(input_dim=len(point_of_interest),num_heads=6, num_classes=3)      
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device)
+        model.eval()  # 모델을 평가 모드로 설정
+
+        print(f"모델이 {model_path} 에서 로드되었습니다!")
+        return model
+    def save(model_dict):
+        save_dir = "./data_files/model"
+        os.makedirs(save_dir, exist_ok=True)  # 폴더가 없으면 생성
+        torch.save(model_dict, f"{save_dir}/theft_detection_model.pth")
+
     ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
     def filter_theft_frames(learn_images, learn_labels):
         conversion_frames = []
