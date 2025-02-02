@@ -4,6 +4,8 @@ from .AI.bone import Bone
 from .AI.behavior import Behavior
 import json
 import time
+import numpy as np
+import cv2
 import os
 
 def update_json(file_path, updates):
@@ -101,8 +103,46 @@ def predict(file_path):
     update_json(json_path, timeReport)  # JSON 파일 업데이트
 
     start_time = time.time()  # 시작 시간 기록
-    prediction = Behavior.predict(bones_df,labels_df)
+    predictions = Behavior.predict(bones_df)
     end_time = time.time()  # 종료 시간 기록
     timeReport["behavior_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
+
+    display_predict(predictions,video)
+    
+def display_predict(predictions,video_frames):
+    print(predictions)
+
+    output_folder = f"./debug/predict"
+                 
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # ✅ 테두리 그리기 (빨간색, 두께 5)
+    border_thickness = 20
+    red_color = (0, 0, 255)  # BGR 형식 (빨간색)
+    fps = 30
+    frame_size = (video_frames[0][0].shape[1], video_frames[0][0].shape[0])  # (width, height)
+    output_path =  f"{output_folder}/predict.mp4"
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 코덱 설정
+    video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+    for video_idx, frames in enumerate(video_frames):
+                print(f"Debug Predict Video : {video_idx + 1}/{len(video_frames)}...")
+                finDectionFrames = []
+                for frame_idx, frame in enumerate(frames):
+                    height ,width = frame.shape[:2]
+                    predicts_idx = int(frame_idx / 15)
+                    prediction = predictions[predicts_idx]
+                    max_predict_idx = prediction.argmax()
+                    #print(max_predict_idx)
+                    if prediction[max_predict_idx] >= 0.6 and max_predict_idx != 0:
+                            # ✅ 바운딩 박스 그리기
+                        cv2.rectangle(frame, (0, 0), (width, height), red_color, border_thickness)
+                    
+                    # ✅ 비디오에 프레임 추가
+                    video_writer.write(frame)
+
+    # ✅ 비디오 저장 완료
+    video_writer.release()
+
 

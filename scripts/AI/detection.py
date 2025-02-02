@@ -135,9 +135,9 @@ class Detection:
                    
                   
                     if is_predict:
-                        output_folder = f"./detected_videos/predict/{video_id}/{class_id}/{detection_id}"
+                        output_folder = f"./debug/obj_detect/predict/{video_id}/{class_id}/{detection_id}"
                     else:
-                        output_folder = f"./detected_videos/laern/{video_id}/{class_id}/{detection_id}"
+                        output_folder = f"./debug/obj_detect/laern/{video_id}/{class_id}/{detection_id}"
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                    

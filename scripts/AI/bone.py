@@ -85,9 +85,9 @@ class Bone:
     
     def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict ,fps=30):    
         if is_predict:
-            output_folder = f"./bone_images/predict/{video_idx}/{class_id}/{detection_idx}"
+            output_folder = f"./debug/bone/predict/{video_idx}/{class_id}/{detection_idx}"
         else:   
-            output_folder = f"./bone_images/learn/{video_idx}/{class_id}/{detection_idx}"
+            output_folder = f"./debug/bone/learn/{video_idx}/{class_id}/{detection_idx}"
             
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)

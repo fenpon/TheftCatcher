@@ -1,8 +1,7 @@
 original/
 __pycache__/
-detected_videos/
-bone_images/
+debug/
 venv/
-
+export/
 
 yolov8n.pt
