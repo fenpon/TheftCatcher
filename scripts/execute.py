@@ -5,7 +5,9 @@ from .AI.behavior import Behavior
 import json
 import time
 import numpy as np
+import pandas as pd
 import cv2
+import gc
 import os
 
 def update_json(file_path, updates):
@@ -47,33 +49,57 @@ def train():
     else:
             print(f"Folder '{folder_path}' already exists.")
     
-    train_videos =   DataController.get_train_video() #원본 데이터에서 학습용 비디오 가져옴
+    train_videos_path = DataController.get_train_video_paths() #원본 데이터에서 학습용 비디오 경로 가져옴
+    print(f"총 {len(train_videos_path)}개의 비디오 파일이 발견되었습니다")
+    download_time = 0.0
+    detection_time = 0.0
+    bone_time = 0.0
+    behavior_time = 0.0
+
+    bones_df = pd.DataFrame()
+    model = None
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
-    max_count = len(train_videos)
+    for idx , video_paths in enumerate(train_videos_path): # 한번에 불러오면 메모리가 못버텨서 파일을 20개씩 쪼개서 불러옴
+        print(f"현재 파일 인덱스 : {idx}")
+        train_videos =   DataController.get_train_video(video_paths) #원본 데이터에서 학습용 비디오 가져옴
 
-    end_time = time.time()  # 종료 시간 기록
-    timeReport["download"] = end_time - start_time  # 다운로드 시간 계산
+
+        
+        max_count = len(train_videos)
+
+        end_time = time.time()  # 종료 시간 기록
+        download_time += end_time - start_time  # 다운로드 시간 계산
+       
+
+        start_time = time.time()  # 시작 시간 기록
+        detections_df = Detection.detect_from_frames(train_videos,len(video_paths)*idx) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+        end_time = time.time()  # 종료 시간 기록
+        detection_time += end_time - start_time  # detect 시간 계산
+    
+        start_time = time.time()  # 시작 시간 기록
+        bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
+        end_time = time.time()  # 종료 시간 기록
+        bone_time += end_time - start_time
+
+        start_time = time.time()  # 시작 시간 기록
+        model = Behavior.learn(bones_df, labels_df,model)
+        end_time = time.time()  # 종료 시간 기록
+        behavior_time += end_time - start_time
+
+        del bones_df
+        del detections_df
+        del train_videos
+        gc.collect()  # 가비지 컬렉터 실행
+
+    # 모델 가중치만 저장 (추천)
+    Behavior.save(model.state_dict())
+    
+
+    timeReport["download"] = download_time
+    timeReport["detection"] = detection_time
+    timeReport["bone"] = bone_time
+    timeReport["behavior"] = behavior_time
     update_json(file_path, timeReport)  # JSON 파일 업데이트
-
-    start_time = time.time()  # 시작 시간 기록
-    detections_df = Detection.detect_from_frames(train_videos) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
-    end_time = time.time()  # 종료 시간 기록
-    timeReport["detection"] = end_time - start_time  # 다운로드 시간 계산
-    update_json(file_path, timeReport)  # JSON 파일 업데이트
-
-  
-    start_time = time.time()  # 시작 시간 기록
-    bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
-    end_time = time.time()  # 종료 시간 기록
-    timeReport["bone"] = end_time - start_time  # 다운로드 시간 계산
-    update_json(file_path, timeReport)  # JSON 파일 업데이트
-
-    start_time = time.time()  # 시작 시간 기록
-    Behavior.learn(bones_df, labels_df)
-    end_time = time.time()  # 종료 시간 기록
-    timeReport["behavior"] = end_time - start_time  # 다운로드 시간 계산
-    update_json(file_path, timeReport)  # JSON 파일 업데이트
-
     print("훈련 완료 ")
     
 def predict(file_path):
@@ -91,7 +117,7 @@ def predict(file_path):
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
 
     start_time = time.time()  # 시작 시간 기록
-    detections_df = Detection.detect_from_frames(video,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+    detections_df = Detection.detect_from_frames(video,0,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
     timeReport["detection_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
@@ -119,7 +145,7 @@ def display_predict(predictions,video_frames):
         os.makedirs(output_folder)
 
     # ✅ 테두리 그리기 (빨간색, 두께 5)
-    border_thickness = 20
+    border_thickness = 30
     red_color = (0, 0, 255)  # BGR 형식 (빨간색)
     fps = 30
     frame_size = (video_frames[0][0].shape[1], video_frames[0][0].shape[0])  # (width, height)

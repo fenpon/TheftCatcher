@@ -80,7 +80,7 @@ class Bone:
             print("---- Bone 추출 완료 ----")
           
             landmark_df = pd.DataFrame(landmark_data)
-            print(landmark_df)
+            #print(landmark_df)
             return landmark_df
     
     def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict ,fps=30):    

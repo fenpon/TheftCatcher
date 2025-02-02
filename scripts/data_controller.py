@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import tempfile
 import xml.etree.ElementTree as ET
-
+import gc
 
 
 
@@ -39,26 +39,34 @@ class DataController:
             print("원본 데이터 다운로드 실패:", e)
             return 0
 
-    def get_train_video():
+    def get_train_video_paths():
+        print("원본 데이터 로컬에서 불러오기")
+        folder_path = './original/Training/video'
+        # Check if the folder exists
+        if not os.path.exists(folder_path):
+            print(f"폴더 '{folder_path}'이(가) 존재하지 않습니다.")
+            return []
+        
+        video_extensions = ('.mp4', '.avi', '.mkv', '.mov')  # Add more extensions as needed
+        video_paths = [f'{folder_path}/{f}' for f in os.listdir(folder_path) if f.lower().endswith(video_extensions)]
+        
+        if not folder_path:
+            print(f"'{folder_path}' 폴더에 비디오 파일이 없습니다.")
+            return []
+        batch_size = 10
+        batchs = []
+        for i in range(0, len(video_paths), batch_size):
+            batch = video_paths[i:i+batch_size]
+            batchs.append(batch)
+        return batchs
+    def get_train_video(video_paths):
         #원본데이터 ./original 폴더에서 가져옴
        
         try:
-            print("원본 데이터 로컬에서 불러오기")
-            folder_path = './original/Training/video'
-        # Check if the folder exists
-            if not os.path.exists(folder_path):
-                print(f"폴더 '{folder_path}'이(가) 존재하지 않습니다.")
-                return None
             
-            video_extensions = ('.mp4', '.avi', '.mkv', '.mov')  # Add more extensions as needed
-            video_paths = [f'{folder_path}/{f}' for f in os.listdir(folder_path) if f.lower().endswith(video_extensions)]
-            
-            if not folder_path:
-                print(f"'{folder_path}' 폴더에 비디오 파일이 없습니다.")
-                return None
 
             video_files =   DataController.video_to_frames(video_paths);
-            print(f"총 {len(video_paths)}개의 비디오 파일이 발견되었습니다")
+            print(f"총 {len(video_paths)}개의 비디오 파일이 Load 되었습니다")
             return video_files
 
         except Exception as e:  # Corrected the syntax here
@@ -151,7 +159,7 @@ class DataController:
             
             if not cap.isOpened():
                 print("Error: Could not open video.")
-                return []
+                continue  # 실패한 비디오는 건너뛰고 다음 비디오 처리
             
             frames = []
             frame_count = 0
@@ -162,7 +170,12 @@ class DataController:
                 frames.append(frame)
                 frame_count += 1  # 프레임 개수 증가
 
+            
+
             cap.release()
             #print(f"Total frames: {frame_count}")
             result.append(frames)  # 프레임 개수 반환
+
+            # 메모리 해제
+            gc.collect() 
         return result

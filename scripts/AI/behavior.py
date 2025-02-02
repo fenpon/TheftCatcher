@@ -48,7 +48,7 @@ class SkeletonDataset(Dataset):
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, input_dim, num_classes, num_heads=4, num_layers=2, model_dim=64, dropout=0.1):
+    def __init__(self, input_dim, num_classes, num_heads=4, num_layers=5, model_dim=64, dropout=0.1):
         super(TransformerModel, self).__init__()
 
         # 1️⃣ 입력 차원(input_dim) → Transformer 모델 차원(model_dim)으로 변환
@@ -143,10 +143,10 @@ class Behavior:
         print("--- ✅ 행동 예측 완료 ---")
         return result
       
-    def learn(learn_images, learn_labels):
+    def learn(learn_images, learn_labels,model):
         print("--- 행동 학습 시작 ---")
      
-        print(learn_images.columns)
+        #print(learn_images.columns)
       
 
         
@@ -160,20 +160,19 @@ class Behavior:
         # PackedSequence로 변환
         #packed = pack_padded_sequence(inputs, lengths, batch_first=True, enforce_sorted=False)
 
-        print("------!!!!!!!!------")
-        print(_filter_theft_frames)
+        #print(_filter_theft_frames)
 
         max_len = 180  # 시퀀스 최대 길이
         x = []
         y = []
         sliding_range = []
         used_frames = []
+
+        #절도 행동에 대한 Frame을 추출
         for now in _filter_theft_frames:
             start = now['start']
             end = now['end']
-            
-           
-            ## 절도 행동을 18프레임의 중앙에 배치하는 슬라이딩 윈도 생성
+
             sliding_start,sliding_end = Behavior.center_range_with_wrap(start,end,input_size,wrap_limit=max_len)
             sliding_range.append((sliding_start, sliding_end))
             
@@ -199,6 +198,8 @@ class Behavior:
         # 18 프레임 간격을 유지하면서 선택
         selected_frames = []
         i = 0
+
+        #일반 케이스에 대한 frame을 추출 (학습 시키는 데이터가 이쪽이 많을거라 절도 행위 케이스랑 수를 적절히 조절이 필요할수도.)
         while(i < max_len):
             start = i 
             end = i + input_size - 1
@@ -223,7 +224,7 @@ class Behavior:
 
             i += input_size  # 다음 윈도우 이동
 
-        print(y)
+        #print(y)
    
 
 
@@ -245,14 +246,15 @@ class Behavior:
 
         
         #model = LSTMModel(input_size, hidden_size, num_layers, num_classes)
-       
-        model = TransformerModel(input_dim=len(point_of_interest),num_heads=16, num_classes=3)       
+        if model is None:
+            model = TransformerModel(input_dim=len(point_of_interest),num_heads=16, num_classes=3)   
+            model.to(device)   
 
         # 손실 함수와 옵티마이저 정의
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=0.0001)
        
-        model.to(device)
+        
             
        
         first_fc_weights = model.fc.weight.clone().detach().cpu().numpy()  # 초기 FC 레이어 가중치 저장
@@ -262,7 +264,7 @@ class Behavior:
         for epoch in range(num_epochs):
             print(f"-- Epochs : {epoch} ---")
             model.train()
-            total_loss = 0
+            
 
             #모든 데이터셋을 순환하지만 GPU에 배치 크기 별로 넣어서 학습하는 방식
             for batch_idx ,( inputs, targets) in enumerate(dataloader):
@@ -294,22 +296,17 @@ class Behavior:
                 loss.backward()
                 optimizer.step()
 
-                total_loss += loss.item()
+                my_loss = loss.item()
 
                 current_fc_weights = model.fc.weight.clone().detach().cpu().numpy()
                 weight_change = np.abs(current_fc_weights - first_fc_weights).sum()
-                print(f"🔄 FC 레이어 가중치 변화량 (Batch {batch_idx}): {weight_change} / loss : {total_loss}")
+                print(f"🔄 FC 레이어 가중치 변화량 (Batch {batch_idx}): {weight_change} / loss : {my_loss}")
 
                 # 가중치 업데이트된 경우 새로운 값으로 갱신
                 first_fc_weights = current_fc_weights
-
-        
-        Behavior.save(model.state_dict())
-        # 모델 가중치만 저장 (추천)
-        
-
                 
         print("--- 행동 학습 완료 ---")   
+        return model;
     
     def load(device):
         """저장된 모델을 불러오는 함수"""

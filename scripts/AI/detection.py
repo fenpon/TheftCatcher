@@ -8,21 +8,9 @@ from ultralytics import YOLO
 import torch
 
 class Detection:
-    def detect(video_blob_list):
-        video_files = []
-        # 비디오
-        for i, blob in enumerate(video_blob_list):
-            #print(blob.name)
-            frames = Detection.video_to_frames(video_blob_list)
-            video_files.append(frames)
-            # 파일 내용 다운로드 예제
-            
-            #print(f"Video {blob.name}, size: {len(frames)} frames")
-            break
-        Detection.detect_from_frames(video_files)
         
     
-    def detect_from_frames(video_frames, is_predict =False,labels=None, model_path="yolov8n.pt", output_dir="output_images"):
+    def detect_from_frames(video_frames,start_video_idx, is_predict =False,labels=None, model_path="yolov8n.pt", output_dir="output_images"):
             #gpu 사용 설정 안되어 있음
             print("---- Object Detection 시작 ----")
             # YOLO 모델 로드
@@ -43,7 +31,7 @@ class Detection:
             for video_idx, frames in enumerate(video_frames):
                 #video_output_dir = os.path.join(output_dir, f"video_{video_idx}")
                 #os.makedirs(video_output_dir, exist_ok=True)
-                print(f"Processing Detection video : {video_idx + 1}/{len(video_frames)}...")
+                print(f"Processing Detection video : {video_idx + 1}/{len(video_frames)} // {start_video_idx}...")
                 finDectionFrames = []
                 for frame_idx, frame in enumerate(frames):
                     # YOLO 객체 탐지 수행
@@ -74,7 +62,7 @@ class Detection:
 
                             cropped_image = frame[y1:y2, x1:x2]  # 바운딩 박스 영역만큼 이미지 자르기
                             data_to_append.append({
-                                'video_idx': video_idx,
+                                'video_idx': start_video_idx + video_idx,
                                 'frame_idx': frame_idx,
                                 'detection_idx': i,
                                 'class': classes[i],
