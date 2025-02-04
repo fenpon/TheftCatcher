@@ -82,7 +82,10 @@ class Bone:
             landmark_df = pd.DataFrame(landmark_data)
             #print(landmark_df)
             return landmark_df
-    
+    def filter_bone_data(bone_df,cropped_labels):
+        print(bone_df)
+        print("------")
+        print(cropped_labels)
     def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict ,fps=30):    
         if is_predict:
             output_folder = f"./debug/bone/predict/{video_idx}/{class_id}/{detection_idx}"

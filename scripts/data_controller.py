@@ -6,7 +6,7 @@ import numpy as np
 import tempfile
 import xml.etree.ElementTree as ET
 import gc
-
+import math
 
 
 
@@ -110,6 +110,7 @@ class DataController:
                             apart_Data = []
                             # 'box' 태그 탐색
                             for box in track.findall("box"):
+                               
                                 frame = int(box.get('frame'))
                                 now_row = {}
                                 now_row["video_idx"] = i
@@ -179,3 +180,86 @@ class DataController:
             # 메모리 해제
             gc.collect() 
         return result
+    def get_midpoint(x1, y1, x2, y2):
+        xm = (x1 + x2) / 2.0
+        ym = (y1 + y2) / 2.0
+        return xm, ym
+    
+    def FilterDetections(detections_df,labels_df): #영상에서 라벨링된 데이터 부분 추출
+        labelings = ['theft_start','theft_end']
+        result = []
+        label_frames = []
+        my_used_label = []
+        for group in labels_df:
+            filtered_df = group[group['type'] == 'box']
+            if(len(filtered_df) == 0):
+                continue
+
+
+            for label_idx , labeling in enumerate( labelings):
+                labeling_frames = filtered_df[
+                    (filtered_df['label'] == labeling) &
+                    (filtered_df['video_idx'].notnull()) 
+                ]
+                if(len(labeling_frames) == 0):
+                    continue
+                first_row_df = labeling_frames.iloc[[0]]  # 첫 번째 행을 DataFrame 형태로 유지
+                
+                # 첫 번째 행에서 video_idx와 frame_idx 값을 가져오기
+                video_idx = first_row_df['video_idx'].iloc[0]
+                frame_idx = first_row_df['frame_idx'].iloc[0]
+                
+
+                xtl = first_row_df['xtl'].iloc[0]
+                xbr = first_row_df['xbr'].iloc[0]
+                ytl = first_row_df['ytl'].iloc[0]
+                ybr = first_row_df['ybr'].iloc[0]
+
+                # labels_df에서 해당 값을 가져오기
+                value = detections_df.loc[(detections_df['video_idx'] == video_idx) & (detections_df['frame_idx'] == frame_idx)]
+                objs_distance = []
+                for idx, row in value.iterrows():
+                    #print(row)
+
+                    xm, ym = DataController.get_midpoint(xtl, ytl, xbr, ybr)
+                    xdm, ydm = DataController.get_midpoint(row['x1'], row['y1'], row['x2'], row['y2'])
+                    
+                   
+
+                    distance = math.sqrt((xm - xdm) ** 2 + (ym - ydm) ** 2)
+
+                    detection_idx = int(row['detection_idx'])  # 정수 변환
+                    
+                    #print(f"distance : {distance} ,  : {detection_idx} / {video_idx}")
+                    objs_distance.append((distance,detection_idx))
+
+
+
+                
+                objs_distance.sort(key=lambda x: x[0])  # 거리에 따라 정렬
+                my_dection_id = objs_distance[0][1]
+                my_used_label.append((my_dection_id,video_idx))
+                label_frames.append((video_idx,my_dection_id ,first_row_df['frame_idx'].values))
+        
+        
+        filtered_detections = detections_df[
+            (detections_df['video_idx'].isin([label[1] for label in my_used_label])) &
+            (detections_df['detection_idx'].isin([label[0] for label in my_used_label]))
+        ]
+        cropped_labels = pd.DataFrame()
+        for group in labels_df:
+            filtered_df = group[group['type'] == 'point']
+            if(len(filtered_df) == 0):
+                continue
+            for idx, row in filtered_df.iterrows():
+                #print(row)
+                for video_idx,dection_id,frame_idxs  in label_frames:
+                    if(row['frame_idx'] == frame_idxs):
+                        #print(row)
+                        row_df = pd.DataFrame([row]) 
+                        cropped_labels = pd.concat([cropped_labels,row_df], ignore_index=True)
+        #print(cropped_labels)
+            
+        return filtered_detections,cropped_labels
+
+        
