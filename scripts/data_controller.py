@@ -190,6 +190,7 @@ class DataController:
         result = []
         label_frames = []
         my_used_label = []
+        cropped_labels = pd.DataFrame()
         for group in labels_df:
             filtered_df = group[group['type'] == 'box']
             if(len(filtered_df) == 0):
@@ -240,13 +241,13 @@ class DataController:
                 my_dection_id = objs_distance[0][1]
                 my_used_label.append((my_dection_id,video_idx))
                 label_frames.append((video_idx,my_dection_id ,first_row_df['frame_idx'].values))
-        
+                cropped_labels = pd.concat([cropped_labels,labeling_frames], ignore_index=True)
         
         filtered_detections = detections_df[
             (detections_df['video_idx'].isin([label[1] for label in my_used_label])) &
             (detections_df['detection_idx'].isin([label[0] for label in my_used_label]))
         ]
-        cropped_labels = pd.DataFrame()
+        
         for group in labels_df:
             filtered_df = group[group['type'] == 'point']
             if(len(filtered_df) == 0):
@@ -257,7 +258,7 @@ class DataController:
                     if(row['frame_idx'] == frame_idxs):
                         #print(row)
                         row_df = pd.DataFrame([row]) 
-                        cropped_labels = pd.concat([cropped_labels,row_df], ignore_index=True)
+                        #cropped_labels = pd.concat([cropped_labels,row_df], ignore_index=True)
         #print(cropped_labels)
             
         return filtered_detections,cropped_labels

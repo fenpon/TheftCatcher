@@ -10,14 +10,19 @@ import torch
 class Detection:
         
     
-    def detect_from_frames(video_frames,start_video_idx, is_predict =False,labels=None, model_path="yolov8n.pt", output_dir="output_images"):
+    def detect_from_frames(video_frames,start_video_idx, is_predict =False,labels=None, model_path="yolov8l.pt", output_dir="output_images"):
             #gpu 사용 설정 안되어 있음
             print("---- Object Detection 시작 ----")
             # YOLO 모델 로드
             # GPU 설정 및 YOLO 모델 로드
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = YOLO(model_path)
-            model.to(device)  # 모델을 GPU로 이동
+            # Load a model
+            obj_model = YOLO("object_yolo8.pt")  # sku-110k 모델
+            metrics = obj_model.val()
+            print(metrics)  # mAP, Precision, Recall 값 출력
+
+           
             print(f"Is CUDA available? {torch.cuda.is_available()}")
             print(f"Using device: {model.device}")  # 사용 중인 디바이스 출력 (cuda 또는 cpu)
             keys_with_person = 0
@@ -25,8 +30,9 @@ class Detection:
                 if value == "person":
                     keys_with_person = int(key)
                     break
-            data_to_append = []
-            
+          
+            persons = []
+            objects = []
 
             for video_idx, frames in enumerate(video_frames):
                 #video_output_dir = os.path.join(output_dir, f"video_{video_idx}")
@@ -44,7 +50,7 @@ class Detection:
                         boxes = detection.boxes.xyxy.cpu().numpy()  # 바운딩 박스 좌표 (NumPy 배열)
                         classes = detection.boxes.cls.cpu().numpy().astype(int)  # 클래스 ID (NumPy 배열, 정수형 변환)
                         person_mapping  = (classes == keys_with_person) # 클래스가 person인 결과만 사용
-                        final_mapping = person_mapping & (confidences > 0.7)# 신뢰도가 0.7 이상인 결과만 사용
+                        final_mapping =  person_mapping & (confidences > 0.7)# 신뢰도가 0.7 이상인 결과만 사용
                 
                         confidences = confidences[final_mapping]
 
@@ -61,7 +67,8 @@ class Detection:
                             y2 = min(frame.shape[0], y2 + space)
 
                             cropped_image = frame[y1:y2, x1:x2]  # 바운딩 박스 영역만큼 이미지 자르기
-                            data_to_append.append({
+                            
+                            detect_wrap = {
                                 'video_idx': start_video_idx + video_idx,
                                 'frame_idx': frame_idx,
                                 'detection_idx': i,
@@ -72,23 +79,55 @@ class Detection:
                                 'x2': x2,
                                 'y2': y2,
                                 'cropped_image': cropped_image  # bounding Box 내의 이미지를 Crop하여 저장
-                            })
-                        # 결과 출력
-                        #print("바운딩 박스 (xyxy):\n", boxes)
-                        #print("신뢰도 (conf):\n", confidences)
-                        #if len(classes) != 1:
-                            #print("클래스 (cls):\n", classes)  # 클래스 ID는 정수형으로 변환
+                            }
+                            if classes[i] == keys_with_person:
+                                persons.append(detect_wrap)
+                       
+                    #obj_results = obj_model.predict(frame, device=device, verbose=False)  # GPU 사용
+            
 
-            classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2', 'cropped_image'],data=data_to_append)
+                    obj_results = obj_model.predict(
+                        frame,  # 입력 이미지 경로
+                        save=False,
+                        save_crop=False,
+                        conf=0.5
+                    )
+                                    
+                    for obj_detection in obj_results: #라벨링 수만큼 인덱스 같은 클래스 두개 감지되도 여긴 1개
+                  
+                         # 바운딩 박스별 탐지
+                        for i, box in enumerate(obj_detection.boxes):
+                            #print(box)
+                            xx1, yy1, xx2, yy2 = box.xyxy[0].tolist()  # Bounding box 좌표 (Tensor → 리스트 변환)
+                            conf = box.conf[0].item()  # 신뢰도 점수 (Tensor → float 변환)
+                            cls = int(box.cls[0].item())  # 클래스 ID (Tensor → int 변환)
+                            obj_detect_wrap = {
+                                    'video_idx': start_video_idx + video_idx,
+                                    'frame_idx': frame_idx,
+                                    'detection_idx': i,
+                                    'class': cls,
+                                    'confidence': conf,
+                                    'x1': xx1,
+                                    'y1': yy1,
+                                    'x2': xx2,
+                                    'y2': yy2
+                            }
+                            print(obj_detect_wrap)
+                            objects.append(obj_detect_wrap)
+
+            
+            classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2', 'cropped_image'],data=persons)
             
         
-
-
+            objects_classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2'],data=objects)
+            
+            Detection.save_detected_obj_video(objects_classified_df,is_predict,video_frames,video_idx)
             #print(classified_df)
             Detection.save_detected_video(classified_df,is_predict)
+          
             print(f"---- Object Detection 완료 : ----  ")
 
-            return classified_df
+            return classified_df,objects_classified_df
     
         
     ## 디버깅용 기능
@@ -104,8 +143,44 @@ class Detection:
                     cv2.destroyAllWindows()
                     return "Detection interrupted by user."
         cv2.destroyAllWindows()
+    def save_detected_obj_video(classified_df,is_predict,video_frames ,video_idx,fps=30):
+        print(f"Debug Predict Video : {video_idx}...")
+        for video_idx, frames in enumerate(video_frames):
+            if is_predict:
+                    output_folder = f"./debug/obj_detect/predict/{video_idx}/obj"
+            else:
+                    output_folder = f"./debug/obj_detect/laern/{video_idx}/obj"
 
-    def save_detected_video(classified_df,is_predict, fps=30):
+                        
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            output_path =  f"{output_folder}/obj.mp4"
+
+            # 🔹 비디오 저장 설정 (XVID 코덱 사용)
+            frame_size = (frames[0].shape[1], frames[0].shape[0])  # (width, height)
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 코덱 설정
+            video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+            for frame_idx, frame in enumerate(frames):
+            
+                #print(f"Debug Predict Video : {video_idx} / {frame_idx}...")
+                frame_copy = frame.copy()  # ✅ 원본 이미지 변경 방지
+
+                for i, row in classified_df.iterrows():
+                    #print(row)
+                    if frame_idx != row['frame_idx']:
+                        continue
+                    cv2.rectangle(frame_copy, (int(row['x1']), int(row['y1'])), (int(row['x2']), int(row['y2'])), (255, 0, 0), 10)  # 빨간색 바운딩 박스
+            
+                
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+                
+                video_writer.write(frame_copy)
+            # ✅ 비디오 저장 완료
+            video_writer.release()
+
+    def save_detected_video(classified_df,is_predict,is_obj = False ,fps=30):
         unique_video_ids = classified_df['video_idx'].unique()      
 
         for video_id in unique_video_ids:
@@ -121,11 +196,12 @@ class Detection:
                     detection_data = detection_data.sort_values(by='frame_idx')
                     
                    
+                    
                   
                     if is_predict:
-                        output_folder = f"./debug/obj_detect/predict/{video_id}/{class_id}/{detection_id}"
+                        output_folder = f"./debug/obj_detect/predict/{video_id}/{class_id}/{detection_id}/{is_obj}"
                     else:
-                        output_folder = f"./debug/obj_detect/laern/{video_id}/{class_id}/{detection_id}"
+                        output_folder = f"./debug/obj_detect/laern/{video_id}/{class_id}/{detection_id}/{is_obj}"
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                    

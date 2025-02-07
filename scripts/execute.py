@@ -72,7 +72,7 @@ def train():
        
 
         start_time = time.time()  # 시작 시간 기록
-        detections_df = Detection.detect_from_frames(train_videos,len(video_paths)*idx) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+        detections_df,objs_detect_df = Detection.detect_from_frames(train_videos,len(video_paths)*idx) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
         end_time = time.time()  # 종료 시간 기록
         detection_time += end_time - start_time  # detect 시간 계산
       
@@ -82,14 +82,15 @@ def train():
         #print(f"필터링된 데이터 : {detections_df}")
        
         bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
-        bones_df = Bone.filter_bone_data(bones_df,label_frames)
-        continue
+        #bones_df = Bone.filter_bone_data(bones_df,label_frames)
+     
         
         end_time = time.time()  # 종료 시간 기록
         bone_time += end_time - start_time
 
+
         start_time = time.time()  # 시작 시간 기록
-        model = Behavior.learn(bones_df, labels_df,model)
+        model = Behavior.learn(bones_df,  label_frames,model)
         end_time = time.time()  # 종료 시간 기록
         behavior_time += end_time - start_time
 
@@ -97,7 +98,7 @@ def train():
         del detections_df
         del train_videos
         gc.collect()  # 가비지 컬렉터 실행
-    return
+  
     # 모델 가중치만 저장 (추천)
     Behavior.save(model.state_dict())
     
@@ -124,7 +125,7 @@ def predict(file_path):
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
 
     start_time = time.time()  # 시작 시간 기록
-    detections_df = Detection.detect_from_frames(video,0,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+    detections_df,objs_detect_df = Detection.detect_from_frames(video,0,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
     timeReport["detection_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트

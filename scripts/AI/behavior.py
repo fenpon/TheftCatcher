@@ -1,6 +1,7 @@
 import os
 import cv2
 import pandas as pd
+
 import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
@@ -8,12 +9,17 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
+from .bone import selected_keypoints
+
+
 point_of_interest = [
-    "LEFT_SHOULDER_x", "LEFT_ELBOW_x", "LEFT_WRIST_x",
-    "RIGHT_SHOULDER_x", "RIGHT_ELBOW_x", "RIGHT_WRIST_x",
-    "LEFT_SHOULDER_y", "LEFT_ELBOW_y", "LEFT_WRIST_y",
-    "RIGHT_SHOULDER_y", "RIGHT_ELBOW_y", "RIGHT_WRIST_y"
+    f'{selected_keypoints[key]}_x' for key in  selected_keypoints
+] + [
+    f'{selected_keypoints[key]}_y' for key  in selected_keypoints
 ]
+
+#print(point_of_interest)  # ['a_x', 'b_x', 'a_y', 'b_y']
+
 
 # 모델 초기화
 input_size = 12
@@ -146,10 +152,9 @@ class Behavior:
     def learn(learn_images, learn_labels,model):
         print("--- 행동 학습 시작 ---")
      
-        #print(learn_images.columns)
-      
-
-        
+        print(learn_labels)
+ 
+        #print(point_of_interest)
         ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
         _filter_theft_frames = Behavior.filter_theft_frames(learn_images, learn_labels)
         #print(_filter_theft_frames.columns)
@@ -354,8 +359,11 @@ class Behavior:
 
         
         labelings = ['theft_start','theft_end']
-        for group in learn_labels:
-            filtered_df = group[group['type'] == 'box']
+
+        filtered_df = learn_labels[learn_labels['type'] == 'box']
+        print(filtered_df)
+        for group in filtered_df:
+            
             for label_idx , labeling in enumerate( labelings):
                 labeling_frames = filtered_df[
                     (filtered_df['label'] == labeling) &
