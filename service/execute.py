@@ -1,7 +1,10 @@
-from .data_controller import DataController
-from .AI.detection import Detection
-from .AI.bone import Bone
-from .AI.behavior import Behavior
+import sys
+import os
+
+from data_controller import DataController
+from AI.detection import Detection
+from AI.bone import Bone
+from AI.behavior import Behavior
 import json
 import time
 import numpy as np
@@ -9,7 +12,27 @@ import pandas as pd
 import cv2
 import gc
 import os
+import json
 
+def init():
+    """모델 학습을 위한 초기 설정"""
+    global model
+    model = None  # 모델 로딩 (필요 시)
+
+def run(raw_data):
+    """train 함수를 호출하는 엔드포인트"""
+    try:
+        data = json.loads(raw_data)
+        result = test(data)  # train 함수 실행
+        return json.dumps({"message": "Training completed", "result": result})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+    
+def test(data):
+    """Train 함수 예제"""
+    print("Training started with data:", data)
+    return {"status": "success"}    
+    
 def update_json(file_path, updates):
     """
     JSON 파일의 값을 업데이트하는 함수.
@@ -32,6 +55,8 @@ def update_json(file_path, updates):
     # JSON 파일에 다시 저장
     with open(file_path, "w") as file:
         json.dump(data, file, indent=4)
+
+
 def train():
     # JSON 파일 경로
     file_path = "./timeReport/timeReport.json"
@@ -45,7 +70,7 @@ def train():
     
     if not os.path.exists(folder_path):
             print(f"Folder '{folder_path}' does not exist. Creating it now.")
-            DataController.download() #원본 데이터 다운로드
+            #DataController.download() #원본 데이터 다운로드
     else:
             print(f"Folder '{folder_path}' already exists.")
     

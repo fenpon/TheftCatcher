@@ -185,7 +185,7 @@ class Behavior:
             
             look_frame = np.zeros((input_size, len(point_of_interest)))  # (18, 18) 크기의 2D 배열 생성
             filtered_df = learn_images[(learn_images["frame_idx"] >= sliding_start) & 
-                           (learn_images["frame_idx"] <= sliding_end + 1)]
+                           (learn_images["frame_idx"] <= sliding_end)]
             
             for _, row in filtered_df.iterrows():
                 idx = int(row['frame_idx'] - sliding_start-1)  # ✅ `int()` 변환 필수

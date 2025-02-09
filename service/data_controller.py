@@ -1,4 +1,3 @@
-from azureml.core import Workspace, Dataset
 import os
 import cv2
 import pandas as pd
@@ -12,33 +11,8 @@ import math
 
 
 class DataController:
-    def download():
-        try:
-            folder_path = './original'
-            if not os.path.exists(folder_path):
-                print(f"Folder '{folder_path}' does not exist. Creating it now.")
-                os.makedirs(folder_path)  # Create the folder if it doesn't exist
-            else:
-                print(f"Folder '{folder_path}' already exists.")
-
-            print("원본 데이터 서버에서 불러와서 저장")
-            subscription_id = 'b850d62a-25fe-4d3a-9697-ea40449528a9'
-            resource_group = '5b048-test'
-            workspace_name = '5b048-ml-service'
-
-            workspace = Workspace(subscription_id, resource_group, workspace_name)
-            
-            dataset = Dataset.get_by_name(workspace, name='vision-training')
-            total_files = len(list(dataset.to_path()))
-            print(f"총 {total_files}개의 파일을 다운로드합니다.")
-
-            dataset.download(target_path=folder_path, overwrite=False)
-            print("원본 데이터 다운로드 완료")
-            return total_files
-        except Exception as e:  # Corrected the syntax here
-            print("원본 데이터 다운로드 실패:", e)
-            return 0
-
+   
+       
     def get_train_video_paths():
         print("원본 데이터 로컬에서 불러오기")
         folder_path = './original/Training/video'

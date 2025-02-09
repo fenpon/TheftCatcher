@@ -3,5 +3,6 @@ __pycache__/
 debug/
 venv/
 export/
-
-yolov8n.pt
+pose_model/
+runs/
+*.pt

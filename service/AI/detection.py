@@ -18,10 +18,7 @@ class Detection:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = YOLO(model_path)
             # Load a model
-            obj_model = YOLO("object_yolo8.pt")  # sku-110k 모델
-            metrics = obj_model.val()
-            print(metrics)  # mAP, Precision, Recall 값 출력
-
+            obj_model = YOLO("best.pt")  # sku-110k 모델
            
             print(f"Is CUDA available? {torch.cuda.is_available()}")
             print(f"Using device: {model.device}")  # 사용 중인 디바이스 출력 (cuda 또는 cpu)
@@ -112,7 +109,7 @@ class Detection:
                                     'x2': xx2,
                                     'y2': yy2
                             }
-                            print(obj_detect_wrap)
+                            #print(obj_detect_wrap)
                             objects.append(obj_detect_wrap)
 
             

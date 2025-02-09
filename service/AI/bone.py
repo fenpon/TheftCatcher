@@ -1,7 +1,6 @@
 import os
 
 import pandas as pd
-import mediapipe as mp
 
 import cv2
 import torch
@@ -12,9 +11,6 @@ from mmpose.apis import inference_topdown, init_model
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # 첫 번째 GPU 사용
 #mediapipe에선 GPU를 지원하지않는데 이렇게 강제로 첫번째 사용하게 하면 된다.
 
-# MediaPipe 초기화
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
 
 # 랜드마크 이름과 인덱스를 매칭하여 출력
 #landmark_mapping = {idx: mp_pose.PoseLandmark(idx).name for idx in range(len(mp_pose.PoseLandmark))}
