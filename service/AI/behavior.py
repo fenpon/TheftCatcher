@@ -152,7 +152,7 @@ class Behavior:
     def learn(learn_images, learn_labels,model):
         print("--- 행동 학습 시작 ---")
      
-        print(learn_labels)
+        #print(learn_labels)
  
         #print(point_of_interest)
         ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
@@ -172,7 +172,9 @@ class Behavior:
         y = []
         sliding_range = []
         used_frames = []
+        print(_filter_theft_frames)
 
+        kkkk = 0
         #절도 행동에 대한 Frame을 추출
         for now in _filter_theft_frames:
             start = now['start']
@@ -190,7 +192,7 @@ class Behavior:
             for _, row in filtered_df.iterrows():
                 idx = int(row['frame_idx'] - sliding_start-1)  # ✅ `int()` 변환 필수
                 look_frame[idx] = row[point_of_interest]  # ✅ `.values` 제거 (단일 값이므로 필요 없음)
-
+            kkkk += len(look_frame)
             x.append(look_frame)
             y.append(now['label'])
 
@@ -204,6 +206,7 @@ class Behavior:
         selected_frames = []
         i = 0
 
+        jjjj = 0
         #일반 케이스에 대한 frame을 추출 (학습 시키는 데이터가 이쪽이 많을거라 절도 행위 케이스랑 수를 적절히 조절이 필요할수도.)
         while(i < max_len):
             start = i 
@@ -223,13 +226,13 @@ class Behavior:
                 for _, row in filtered_df.iterrows():
                     idx = int(row['frame_idx'] - start-1)  # ✅ `int()` 변환 필수
                     look_frame[idx] = row[point_of_interest]  # ✅ `.values` 제거 (단일 값이므로 필요 없음)
-
+                jjjj += len(look_frame)
                 x.append(look_frame)
                 y.append(0)  # 레이블 없음
 
             i += input_size  # 다음 윈도우 이동
 
-        #print(y)
+        print(f"GGG : {jjjj} : {kkkk}")
    
 
 
@@ -354,26 +357,28 @@ class Behavior:
 
         return new_start,new_end
     ## 각 개체별로 절도 라벨링 된 프레임 이미지를 분류해서 추출하는 함수
+    import pandas as pd
+
     def filter_theft_frames(learn_images, learn_labels):
         conversion_frames = []
 
-        
-        labelings = ['theft_start','theft_end']
+        # 'theft_end' 레이블을 찾음
+        labelings = ['theft_end']
 
-        filtered_df = learn_labels[learn_labels['type'] == 'box']
-        print(filtered_df)
-        for group in filtered_df:
-            
-            for label_idx , labeling in enumerate( labelings):
-                labeling_frames = filtered_df[
-                    (filtered_df['label'] == labeling) &
-                    (filtered_df['video_idx'].notnull()) 
-                ]
-                if not labeling_frames.empty:
-                    min_frame_row = labeling_frames.loc[labeling_frames['frame_idx'].idxmin()]
-                    max_frame_row = labeling_frames.loc[labeling_frames['frame_idx'].idxmax()]
+        # 여러 개의 DataFrame을 하나로 병합
+        convert_df = pd.concat(learn_labels, ignore_index=True)
 
-                    conversion_frames.append({'video_idx':min_frame_row['video_idx'],'start':min_frame_row['frame_idx'],'end':max_frame_row['frame_idx'],'label':label_idx+1})
- 
+        # 'box' 타입만 필터링
+        convert_df = convert_df[convert_df['type'] == 'box']
+
+        for labeling in labelings:
+            # 특정 라벨만 필터링
+            labeling_frames = convert_df[
+                (convert_df['label'] == labeling) & (convert_df['video_idx'].notnull())
+            ]
+
+            #print(labeling_frames)
+
         return conversion_frames
+
         

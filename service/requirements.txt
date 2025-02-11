@@ -1,0 +1,13 @@
+
+azureml-core
+opencv-python
+numpy
+pandas
+ultralytics
+
+--extra-index-url https://download.pytorch.org/whl/cu122
+torch==2.1.2+cu122
+torchvision==0.16.2+cu122
+
+
+

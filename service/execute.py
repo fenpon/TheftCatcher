@@ -101,21 +101,19 @@ def train():
         end_time = time.time()  # 종료 시간 기록
         detection_time += end_time - start_time  # detect 시간 계산
       
-
         start_time = time.time()  # 시작 시간 기록
-        detections_df,label_frames = DataController.FilterDetections(detections_df,labels_df) #영상에서 뼈대 추출
+        #detections_df,label_frames = DataController.FilterDetections(detections_df,labels_df) #영상에서 뼈대 추출
         #print(f"필터링된 데이터 : {detections_df}")
        
         bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
         #bones_df = Bone.filter_bone_data(bones_df,label_frames)
-     
-        
+            
         end_time = time.time()  # 종료 시간 기록
         bone_time += end_time - start_time
 
 
         start_time = time.time()  # 시작 시간 기록
-        model = Behavior.learn(bones_df,  label_frames,model)
+        model = Behavior.learn(bones_df,  labels_df,model)
         end_time = time.time()  # 종료 시간 기록
         behavior_time += end_time - start_time
 

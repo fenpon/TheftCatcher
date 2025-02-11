@@ -7,6 +7,7 @@ import numpy as np
 from ultralytics import YOLO
 import torch
 
+
 class Detection:
         
     
@@ -18,7 +19,7 @@ class Detection:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = YOLO(model_path)
             # Load a model
-            obj_model = YOLO("best.pt")  # sku-110k 모델
+         
            
             print(f"Is CUDA available? {torch.cuda.is_available()}")
             print(f"Using device: {model.device}")  # 사용 중인 디바이스 출력 (cuda 또는 cpu)
@@ -79,39 +80,6 @@ class Detection:
                             }
                             if classes[i] == keys_with_person:
                                 persons.append(detect_wrap)
-                       
-                    #obj_results = obj_model.predict(frame, device=device, verbose=False)  # GPU 사용
-            
-
-                    obj_results = obj_model.predict(
-                        frame,  # 입력 이미지 경로
-                        save=False,
-                        save_crop=False,
-                        conf=0.5
-                    )
-                                    
-                    for obj_detection in obj_results: #라벨링 수만큼 인덱스 같은 클래스 두개 감지되도 여긴 1개
-                  
-                         # 바운딩 박스별 탐지
-                        for i, box in enumerate(obj_detection.boxes):
-                            #print(box)
-                            xx1, yy1, xx2, yy2 = box.xyxy[0].tolist()  # Bounding box 좌표 (Tensor → 리스트 변환)
-                            conf = box.conf[0].item()  # 신뢰도 점수 (Tensor → float 변환)
-                            cls = int(box.cls[0].item())  # 클래스 ID (Tensor → int 변환)
-                            obj_detect_wrap = {
-                                    'video_idx': start_video_idx + video_idx,
-                                    'frame_idx': frame_idx,
-                                    'detection_idx': i,
-                                    'class': cls,
-                                    'confidence': conf,
-                                    'x1': xx1,
-                                    'y1': yy1,
-                                    'x2': xx2,
-                                    'y2': yy2
-                            }
-                            #print(obj_detect_wrap)
-                            objects.append(obj_detect_wrap)
-
             
             classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2', 'cropped_image'],data=persons)
             
@@ -119,7 +87,6 @@ class Detection:
             objects_classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2'],data=objects)
             
             Detection.save_detected_obj_video(objects_classified_df,is_predict,video_frames,video_idx)
-            #print(classified_df)
             Detection.save_detected_video(classified_df,is_predict)
           
             print(f"---- Object Detection 완료 : ----  ")

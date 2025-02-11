@@ -94,6 +94,7 @@ class Bone:
             for idx, row in group.iterrows():
                 cropped_image = row['cropped_image']  # 그룹의 특정 행에서 이미지 가져오기
                 image_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+                height, width, _ = image_rgb.shape
         
                 results = inference_topdown(pose_model, image_rgb)
 
@@ -117,8 +118,8 @@ class Bone:
                         #print(f" {key}: (x={x:.2f}, y={y:.2f})")
 
                         
-                        new_row[f'{key}_x'] = x
-                        new_row[f'{key}_y'] = y
+                        new_row[f'{key}_x'] = width / x
+                        new_row[f'{key}_y'] = height / y
                         new_row['label'] = 0
 
                         draws.append((x,y))
