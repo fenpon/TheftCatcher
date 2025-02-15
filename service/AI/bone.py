@@ -34,27 +34,10 @@ checkpoint_file = "./pose_model/checkpoints/hrnet_w48_coco_wholebody_256x192-643
 selected_keypoints = {
     9: "left_wrist",
     10: "right_wrist",
-    
-    
     7: "left_elbow",
     8: "right_elbow",
     5: "left_shoulder",
     6: "right_shoulder"
-    """
-    91: 'left_hand_root',
-    95: 'left_thumb4',
-    99: 'left_forefinger4',
-    103: 'left_middle_finger4',
-    107: 'left_ring_finger4',
-    111: 'left_pinky_finger4',
-
-    112: 'right_hand_root',
-    116: 'right_thumb4',
-    120: 'right_forefinger4',
-    124: 'right_middle_finger4',
-    128: 'right_ring_finger4',
-    132: 'right_pinky_finger4'
-    """
 }
 
 # 모델 로드
@@ -97,7 +80,7 @@ class Bone:
                 height, width, _ = image_rgb.shape
         
                 results = inference_topdown(pose_model, image_rgb)
-
+                
                 if results and hasattr(results[0], 'pred_instances'):
                     keypoints = results[0].pred_instances.keypoints  # (N, 133, 3) 형태
                     new_row = row.to_dict()  # row를 딕셔너리로 변환
@@ -117,13 +100,16 @@ class Bone:
                         x, y = value
                         #print(f" {key}: (x={x:.2f}, y={y:.2f})")
 
-                        
-                        new_row[f'{key}_x'] = width / x
-                        new_row[f'{key}_y'] = height / y
+                        #로컬 좌표계로하면 한곳에 모든 객체가 모여서 학습진행시 구별이 안되는 문제가 있어
+                        #바운딩 박스의 시작 지점에 로컬 좌표계를 더해서 전역 좌표계로 변환하면 행동 구별이 된다.
+                        # row.loc['x1']
+                        # row.loc['y1']
+                        new_row[f'{key}_x'] =    x / width
+                        new_row[f'{key}_y'] =  y / height
                         new_row['label'] = 0
 
                         draws.append((x,y))
-                        landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
+                    landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
 
                     image_rgb = Bone.DrawBone(image_rgb,draws)
                     Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict)

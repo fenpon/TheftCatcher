@@ -165,10 +165,11 @@ def predict(file_path):
     timeReport["behavior_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
 
-    display_predict(predictions,video)
+    display_predict(predictions,video,detections_df)
+    return predictions
     
-def display_predict(predictions,video_frames):
-    print(predictions)
+def display_predict(predictions,video_frames,detections_df):
+    #print(predictions)
 
     output_folder = f"./debug/predict"
                  
@@ -182,19 +183,24 @@ def display_predict(predictions,video_frames):
     frame_size = (video_frames[0][0].shape[1], video_frames[0][0].shape[0])  # (width, height)
     output_path =  f"{output_folder}/predict.mp4"
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 코덱 설정
+    print(predictions)
     video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
     for video_idx, frames in enumerate(video_frames):
                 print(f"Debug Predict Video : {video_idx + 1}/{len(video_frames)}...")
+                
                 finDectionFrames = []
                 for frame_idx, frame in enumerate(frames):
-                    height ,width = frame.shape[:2]
-                    predicts_idx = int(frame_idx / 15)
-                    prediction = predictions[predicts_idx]
-                    max_predict_idx = prediction.argmax()
-                    #print(max_predict_idx)
-                    if prediction[max_predict_idx] >= 0.6 and max_predict_idx != 0:
-                            # ✅ 바운딩 박스 그리기
-                        cv2.rectangle(frame, (0, 0), (width, height), red_color, border_thickness)
+                    for idx,detection_idx in predictions:
+                            #print("idx : ",idx)
+                            #print("frame_idx : ",frame_idx)
+                            if frame_idx == idx:
+                                now_detect = detections_df[(detections_df['frame_idx'] == frame_idx) & (detections_df['detection_idx'] == detection_idx)]
+                                
+                                if not now_detect.empty:
+                                    x1, y1, x2, y2 = now_detect.iloc[0][['x1', 'y1', 'x2', 'y2']].values
+                                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                                    # ✅ 바운딩 박스 그리기
+                                    cv2.rectangle(frame, (x1, y1), (x2, y2), red_color, border_thickness)
                     
                     # ✅ 비디오에 프레임 추가
                     video_writer.write(frame)
