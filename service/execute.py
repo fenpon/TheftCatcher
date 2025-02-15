@@ -13,25 +13,9 @@ import cv2
 import gc
 import os
 import json
+from datetime import datetime
 
-def init():
-    """모델 학습을 위한 초기 설정"""
-    global model
-    model = None  # 모델 로딩 (필요 시)
-
-def run(raw_data):
-    """train 함수를 호출하는 엔드포인트"""
-    try:
-        data = json.loads(raw_data)
-        result = test(data)  # train 함수 실행
-        return json.dumps({"message": "Training completed", "result": result})
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-    
-def test(data):
-    """Train 함수 예제"""
-    print("Training started with data:", data)
-    return {"status": "success"}    
+ 
     
 def update_json(file_path, updates):
     """
@@ -58,6 +42,7 @@ def update_json(file_path, updates):
 
 
 def train():
+    now_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # JSON 파일 경로
     file_path = "./timeReport/timeReport.json"
 
@@ -97,7 +82,7 @@ def train():
        
 
         start_time = time.time()  # 시작 시간 기록
-        detections_df,objs_detect_df = Detection.detect_from_frames(train_videos,len(video_paths)*idx) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+        detections_df,objs_detect_df = Detection.detect_from_frames(train_videos,len(video_paths)*idx,now_time = now_time) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
         end_time = time.time()  # 종료 시간 기록
         detection_time += end_time - start_time  # detect 시간 계산
       
@@ -105,7 +90,7 @@ def train():
         #detections_df,label_frames = DataController.FilterDetections(detections_df,labels_df) #영상에서 뼈대 추출
         #print(f"필터링된 데이터 : {detections_df}")
        
-        bones_df = Bone.CreateBone(detections_df,max_count) #영상에서 뼈대 추출
+        bones_df = Bone.CreateBone(detections_df,max_count,now_time = now_time) #영상에서 뼈대 추출
         #bones_df = Bone.filter_bone_data(bones_df,label_frames)
             
         end_time = time.time()  # 종료 시간 기록
@@ -134,6 +119,7 @@ def train():
     print("훈련 완료 ")
     
 def predict(file_path):
+    now_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # JSON 파일 경로
     json_path = "./timeReport/timeReport.json"
     
@@ -148,13 +134,13 @@ def predict(file_path):
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
 
     start_time = time.time()  # 시작 시간 기록
-    detections_df,objs_detect_df = Detection.detect_from_frames(video,0,True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
+    detections_df,objs_detect_df = Detection.detect_from_frames(video,0,now_time = now_time,is_predict=True) #데이터 객채만 인식해서 해당 바운딩 박스 만큼 이미지 Crop 해서 저장
     end_time = time.time()  # 종료 시간 기록
     timeReport["detection_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
 
     start_time = time.time()  # 시작 시간 기록
-    bones_df = Bone.CreateBone(detections_df,1,True) #영상에서 뼈대 추출
+    bones_df = Bone.CreateBone(detections_df,1,now_time = now_time,is_predict=True) #영상에서 뼈대 추출
     end_time = time.time()  # 종료 시간 기록
     timeReport["bone_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
@@ -165,13 +151,13 @@ def predict(file_path):
     timeReport["behavior_predict"] = end_time - start_time  # 다운로드 시간 계산
     update_json(json_path, timeReport)  # JSON 파일 업데이트
 
-    display_predict(predictions,video,detections_df)
+    display_predict(predictions,video,detections_df,now_time = now_time)
     return predictions
     
-def display_predict(predictions,video_frames,detections_df):
+def display_predict(predictions,video_frames,detections_df,now_time):
     #print(predictions)
 
-    output_folder = f"./debug/predict"
+    output_folder = f"./debug/predict/{now_time}/"
                  
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)

@@ -11,7 +11,7 @@ import math
 
 
 class DataController:
-   
+    
        
     def get_train_video_paths():
         print("원본 데이터 로컬에서 불러오기")

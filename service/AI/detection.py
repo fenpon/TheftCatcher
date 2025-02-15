@@ -11,7 +11,7 @@ import torch
 class Detection:
         
     
-    def detect_from_frames(video_frames,start_video_idx, is_predict =False,labels=None, model_path="yolov8l.pt", output_dir="output_images"):
+    def detect_from_frames(video_frames,start_video_idx,now_time, is_predict =False,labels=None, model_path="yolov8l.pt", output_dir="output_images"):
             #gpu 사용 설정 안되어 있음
             print("---- Object Detection 시작 ----")
             # YOLO 모델 로드
@@ -86,8 +86,8 @@ class Detection:
         
             objects_classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2'],data=objects)
             
-            Detection.save_detected_obj_video(objects_classified_df,is_predict,video_frames,video_idx)
-            Detection.save_detected_video(classified_df,is_predict)
+           
+            Detection.save_detected_video(classified_df,now_time,is_predict)
           
             print(f"---- Object Detection 완료 : ----  ")
 
@@ -95,56 +95,7 @@ class Detection:
     
         
     ## 디버깅용 기능
-
-    # 프레임을 화면에 표시 (옵션)
-    def display_video(finDectionFrames):
-        for annotated_frame in finDectionFrames:
-                # 프레임을 화면에 표시 (옵션)
-                cv2.imshow("Frame", annotated_frame)
-                time.sleep(0.1)
-                if cv2.waitKey(1) & 0xFF == ord("q"):  # 'q' 키로 중지
-                    print("User exited.")
-                    cv2.destroyAllWindows()
-                    return "Detection interrupted by user."
-        cv2.destroyAllWindows()
-    def save_detected_obj_video(classified_df,is_predict,video_frames ,video_idx,fps=30):
-        print(f"Debug Predict Video : {video_idx}...")
-        for video_idx, frames in enumerate(video_frames):
-            if is_predict:
-                    output_folder = f"./debug/obj_detect/predict/{video_idx}/obj"
-            else:
-                    output_folder = f"./debug/obj_detect/laern/{video_idx}/obj"
-
-                        
-            if not os.path.exists(output_folder):
-                os.makedirs(output_folder)
-
-            output_path =  f"{output_folder}/obj.mp4"
-
-            # 🔹 비디오 저장 설정 (XVID 코덱 사용)
-            frame_size = (frames[0].shape[1], frames[0].shape[0])  # (width, height)
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 코덱 설정
-            video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
-            for frame_idx, frame in enumerate(frames):
-            
-                #print(f"Debug Predict Video : {video_idx} / {frame_idx}...")
-                frame_copy = frame.copy()  # ✅ 원본 이미지 변경 방지
-
-                for i, row in classified_df.iterrows():
-                    #print(row)
-                    if frame_idx != row['frame_idx']:
-                        continue
-                    cv2.rectangle(frame_copy, (int(row['x1']), int(row['y1'])), (int(row['x2']), int(row['y2'])), (255, 0, 0), 10)  # 빨간색 바운딩 박스
-            
-                
-                if not os.path.exists(output_folder):
-                    os.makedirs(output_folder)
-                
-                video_writer.write(frame_copy)
-            # ✅ 비디오 저장 완료
-            video_writer.release()
-
-    def save_detected_video(classified_df,is_predict,is_obj = False ,fps=30):
+    def save_detected_video(classified_df,now_time,is_predict,is_obj = False ,fps=30):
         unique_video_ids = classified_df['video_idx'].unique()      
 
         for video_id in unique_video_ids:
@@ -163,9 +114,9 @@ class Detection:
                     
                   
                     if is_predict:
-                        output_folder = f"./debug/obj_detect/predict/{video_id}/{class_id}/{detection_id}/{is_obj}"
+                        output_folder = f"./debug/obj_detect/predict/{now_time}/{video_id}/{class_id}/{detection_id}/{is_obj}"
                     else:
-                        output_folder = f"./debug/obj_detect/laern/{video_id}/{class_id}/{detection_id}/{is_obj}"
+                        output_folder = f"./debug/obj_detect/laern/{now_time}/{video_id}/{class_id}/{detection_id}/{is_obj}"
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                    

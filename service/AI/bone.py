@@ -57,7 +57,7 @@ else:
 
 class Bone:
     
-    def CreateBone(detections_df,max_count,is_predict = False):
+    def CreateBone(detections_df,max_count,now_time,is_predict = False):
         
 
         print("--- Bone 추출 시작 ---")
@@ -112,7 +112,7 @@ class Bone:
                     landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
 
                     image_rgb = Bone.DrawBone(image_rgb,draws)
-                    Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict)
+                    Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict,now_time)
 
                 #print(results)
                 """
@@ -171,11 +171,11 @@ class Bone:
        
         return image
 
-    def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict ,fps=30):    
+    def save_detected_video(video_idx, detection_idx, class_id,frame_idx,frame,is_predict,now_time ,fps=30):    
         if is_predict:
-            output_folder = f"./debug/bone/predict/{video_idx}/{class_id}/{detection_idx}"
+            output_folder = f"./debug/bone/predict/{now_time}/{video_idx}/{class_id}/{detection_idx}"
         else:   
-            output_folder = f"./debug/bone/learn/{video_idx}/{class_id}/{detection_idx}"
+            output_folder = f"./debug/bone/learn/{now_time}/{video_idx}/{class_id}/{detection_idx}"
             
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
