@@ -39,16 +39,16 @@ class DataController:
         try:
             
 
-            video_files =   DataController.video_to_frames(video_paths);
+            video_files,fps =   DataController.video_to_frames(video_paths);
             print(f"총 {len(video_paths)}개의 비디오 파일이 Load 되었습니다")
-            return video_files
+            return video_files,fps
 
         except Exception as e:  # Corrected the syntax here
             print("원본 데이터 불러오기 실패:", e)
             return None
     def get_video(file_path):
-        result = DataController.video_to_frames([file_path])
-        return result
+        result,fps = DataController.video_to_frames([file_path])
+        return result,fps
         
     #XML 파일을 읽어서 라벨을 가져옴  
     def GetLabel():
@@ -131,6 +131,7 @@ class DataController:
     #동영상을  배열 형식의 이미지로 변환
     def video_to_frames(video_paths):
         result = []
+        result_frame_time = []
         for video_path in video_paths:
             # VideoCapture를 사용하여 동영상을 열기
             cap = cv2.VideoCapture(video_path)
@@ -139,6 +140,9 @@ class DataController:
                 print("Error: Could not open video.")
                 continue  # 실패한 비디오는 건너뛰고 다음 비디오 처리
             
+            fps = cap.get(cv2.CAP_PROP_FPS)  # FPS 가져오기
+            
+
             frames = []
             frame_count = 0
             while True:
@@ -153,10 +157,11 @@ class DataController:
             cap.release()
             #print(f"Total frames: {frame_count}")
             result.append(frames)  # 프레임 개수 반환
+            result_frame_time.append(fps)
 
             # 메모리 해제
             gc.collect() 
-        return result
+        return result,result_frame_time
     def get_midpoint(x1, y1, x2, y2):
         xm = (x1 + x2) / 2.0
         ym = (y1 + y2) / 2.0

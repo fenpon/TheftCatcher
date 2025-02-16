@@ -163,6 +163,7 @@ class Behavior:
           
         print(predict_images)       
         result = []
+        result_arr = []
         sliding_range = []
 
         grouped = predict_images.groupby(['video_idx', 'detection_idx'])
@@ -198,10 +199,10 @@ class Behavior:
 
             for i in range(len(ratio)):
                 if ratio[i][1] >= 0.6:
-                    print(x_i[i])
                     for j in range(0, input_size):
                         val = x_i[i]
                         result.append((val[0]+j,val[1]))
+                    result_arr.append((x_i[i][0],x_i[i][0]+input_size-1,x_i[i][1]))
             print(ratio)  
                 #print(now)
                 #now = now.reset_index(drop=True)
@@ -215,7 +216,7 @@ class Behavior:
 
         #print(result)
         print("--- ✅ 행동 예측 완료 ---")
-        return result
+        return result,result_arr
       
     def learn(learn_images, learn_labels,model):
         print("--- 행동 학습 시작 ---")

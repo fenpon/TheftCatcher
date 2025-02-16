@@ -40,8 +40,7 @@ selected_keypoints = {
     6: "right_shoulder"
 }
 
-# 모델 로드
-pose_model = init_model(config_file, checkpoint_file, device="cuda:0")
+
 
 """
 if "keypoint_id2name" in pose_model.dataset_meta:
@@ -56,8 +55,10 @@ else:
 
 
 class Bone:
-    
-    def CreateBone(detections_df,max_count,now_time,is_predict = False):
+    def LoadPoseModel():
+        # 모델 로드
+        return init_model(config_file, checkpoint_file, device="cuda:0")
+    def CreateBone(detections_df,max_count,pose_model,now_time,is_predict = False):
         
 
         print("--- Bone 추출 시작 ---")
