@@ -1,11 +1,23 @@
+azure.storage.blob
+azure.identity 
 
+
+requests
+reportlab
 azureml-core
+markdown
+pytz
+python-dotenv
+
 opencv-python
 numpy
 pandas
 ultralytics
 flask
 waitress
+
+AzureOpenAI
+openai
 
 --extra-index-url https://download.pytorch.org/whl/cu118
 torch==2.1.2+cu118
