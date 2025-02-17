@@ -156,9 +156,9 @@ def predict(file_path):
     if len(fps) == 0:
          return None
     
-    display_predict(predictions,video,detections_df,fps=fps[0],now_time = now_time)
-    
-    return make_response(prediction_arrays,fps=fps[0])
+    cut_imgs = display_predict(prediction_arrays,video,detections_df,fps=fps[0],now_time = now_time)
+    return_text = make_response(prediction_arrays,fps=fps[0])
+    return return_text,cut_imgs
     
 def display_predict(predictions,video_frames,detections_df,fps,now_time):
     
@@ -167,6 +167,7 @@ def display_predict(predictions,video_frames,detections_df,fps,now_time):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
+    cut_imgs = []
     # ✅ 테두리 그리기 (빨간색, 두께 5)
     border_thickness = 30
     red_color = (0, 0, 255)  # BGR 형식 (빨간색)
@@ -181,23 +182,31 @@ def display_predict(predictions,video_frames,detections_df,fps,now_time):
                 
                 finDectionFrames = []
                 for frame_idx, frame in enumerate(frames):
-                    for idx,detection_idx in predictions:
+                    for predict in predictions:
+                        (start,end,human_id) = predict
+                        center = int((start+end)/2)
+                        for idx in range(start,end):
                             #print("idx : ",idx)
                             #print("frame_idx : ",frame_idx)
                             if frame_idx == idx:
-                                now_detect = detections_df[(detections_df['frame_idx'] == frame_idx) & (detections_df['detection_idx'] == detection_idx)]
+                                now_detect = detections_df[(detections_df['frame_idx'] == frame_idx) & (detections_df['detection_idx'] == human_id)]
                                 
                                 if not now_detect.empty:
                                     x1, y1, x2, y2 = now_detect.iloc[0][['x1', 'y1', 'x2', 'y2']].values
                                     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                                     # ✅ 바운딩 박스 그리기
                                     cv2.rectangle(frame, (x1, y1), (x2, y2), red_color, border_thickness)
+
+                                    if center == idx:
+                                        cut_imgs.append([center,x1,y1,x2,y2])
+                                
                     
                     # ✅ 비디오에 프레임 추가
                     video_writer.write(frame)
 
     # ✅ 비디오 저장 완료
     video_writer.release()
+    return cut_imgs
 
 
 def make_response(predictions,fps):
@@ -206,5 +215,6 @@ def make_response(predictions,fps):
         (start,end,human_id) = prediction
         frame_time = 1 / fps if fps > 0 else 0  # 1프레임당 시간 (초)
         text += f"{human_id}번 사람이 {(start*frame_time):.2f}초부터 {(end*frame_time):.2f}초까지 절도 행위를 저지른 것으로 감지되었습니다.\n"
+        
 
     return text

@@ -27,7 +27,7 @@ def get_detect():
     # -> yolo 사람, 인식한 bone , 행동 인식 결과(최종 결과 영상)
     try:
         # ✅ Pass file path to `predict`
-        predictions = predict(file_path)
+        predictions,cut_imgs = predict(file_path)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
@@ -35,7 +35,7 @@ def get_detect():
         if os.path.exists(file_path):
             os.remove(file_path)
     
-    return json.dumps({'success': True, 'result': predictions}, ensure_ascii=False, default=str), 200
+    return json.dumps({'success': True, 'result': predictions, 'cuts':cut_imgs}, ensure_ascii=False, default=str), 200
 
 @app.route('/test', methods=['POST'])
 def get_test():
