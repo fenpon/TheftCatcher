@@ -4,11 +4,35 @@ import json
 import os
 
 from execute import predict
+
+
 import scripts.videos as vs
 import scripts.report as rp
 import scripts.email as em
 
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
+# 환경 변수 가져오기
+
+# 환경 변수 가져오기
+API_KEY = os.getenv("API_KEY")
+ENDPOINT = os.getenv("ENDPOINT")
+
+AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+CONTAINER_NAME = os.getenv("CONTAINER_NAME")
+
+DALLE_VERSION = os.getenv("DALLE_VERSION")
+DALLE_ENDPOINT = os.getenv("DALLE_ENDPOINT")
+
+DALLE_APIKEY = os.getenv("DALLE_APIKEY")
+
+
+
 app = Flask(__name__)
+
+
 
 @app.route('/detect', methods=['POST'])
 def get_detect():
@@ -45,10 +69,10 @@ def get_detect():
         
 
     predicts_img = vs.detect_test(video_bytes,cuts=cut_imgs)
-    report_result = rp.report_analyze(predictions,location)
+    report_result = rp.report_analyze(predictions,location,API_KEY,ENDPOINT)
 
     report_result = report_result.encode("utf-8").decode("utf-8")
-    report_url = rp.make_pdf(report_result,predicts_img)
+    report_url = rp.make_pdf(report_result,predicts_img,AZURE_STORAGE_CONNECTION_STRING,CONTAINER_NAME)
    
 
 
@@ -57,8 +81,8 @@ def get_detect():
 @app.route('/email_img', methods=['POST'])
 def email_img():
     try:
-        result = em.get_email_img()  # em.get_email_img()가 이미지 데이터를 반환한다고 가정
-        return jsonify({"result": True, "data": result}), 200
+        result = em.get_email_img(DALLE_VERSION,DALLE_ENDPOINT,DALLE_APIKEY)  # em.get_email_img()가 이미지 데이터를 반환한다고 가정
+        return jsonify({"result": True, "url": result}), 200
     except Exception as e:
         return jsonify({"result": False, "error": str(e)}), 500
 

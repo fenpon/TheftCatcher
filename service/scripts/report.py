@@ -6,7 +6,7 @@ import cv2
 import io
 import os
 import platform
-from dotenv import load_dotenv
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, ListFlowable,Frame, PageTemplate,PageBreak,Image
@@ -34,16 +34,10 @@ import logging
 
 
 
-# .env 파일 로드
-load_dotenv()
 
 
-# 환경 변수 가져오기
-API_KEY = os.getenv("API_KEY")
-ENDPOINT = os.getenv("ENDPOINT")
 
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-CONTAINER_NAME = os.getenv("CONTAINER_NAME")
+
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +55,7 @@ LINE_SPACING = 16  # 줄 간격
 MARGIN = 50  # 좌우 여백
 
 
-def report_analyze(video_report, location):
+def report_analyze(video_report, location,API_KEY,endpoint):
     logging.info(f"report_analyze : {video_report} // {location}")
 
     headers = {
@@ -80,7 +74,7 @@ def report_analyze(video_report, location):
     }
 
     try:
-        response = requests.post(ENDPOINT, headers=headers, json=payload)
+        response = requests.post(endpoint, headers=headers, json=payload)
 
         # 응답 상태 코드 확인
         if response.status_code != 200:
@@ -209,7 +203,7 @@ def convert_to_pdfa(input_pdf):
         print("⚠️ PDF/A 변환 실패:", e)
         return input_pdf  # 변환 실패 시 원본 반환
 
-def make_pdf(text,predicts_img):
+def make_pdf(text,predicts_img,connection_str,container_name):
     title = "절도 방지 대책 보고서"  # 문서 제목
     # ✅ 임시 PDF 파일 생성
     temp_fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf")
@@ -303,42 +297,42 @@ def make_pdf(text,predicts_img):
     kst = pytz.timezone("Asia/Seoul")
     now_kst = datetime.now(kst)
    
-    download_link = upload_to_blob_storage(pdfa_path, f"report_{now_kst.strftime('%Y-%m-%d_%H-%M-%S')}.pdf")
+    download_link = upload_to_blob_storage(pdfa_path, f"report_{now_kst.strftime('%Y-%m-%d_%H-%M-%S')}.pdf",connection_str,container_name)
     
     print(f"PDF 생성 완료: {pdfa_path}")
     return download_link
 
-def generate_blob_download_link(file_name,blob_service_client, expiry_hours=72):
+def generate_blob_download_link(file_name,blob_service_client,container_name, expiry_hours=72):
     #72 시간 다운 가능
     try:
         sas_token = generate_blob_sas(
             account_name=blob_service_client.account_name,
-            container_name=CONTAINER_NAME,
+            container_name=container_name,
             blob_name=file_name,
             account_key=blob_service_client.credential.account_key,
             permission=BlobSasPermissions(read=True),  # 읽기 권한만 부여
             expiry=datetime.utcnow() + timedelta(hours=expiry_hours)  # 만료시간 설정
         )
 
-        blob_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{CONTAINER_NAME}/{file_name}?{sas_token}"
+        blob_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{container_name}/{file_name}?{sas_token}"
         return blob_url
     except Exception as e:
         logging.error(f"다운로드 링크 생성 오류: {str(e)}")
         return None
     
-def upload_to_blob_storage(file_path, file_name):
+def upload_to_blob_storage(file_path, file_name,connection_str,container_name):
     try:
         print("PDF 업로드 진행")
         # Blob Service Client 생성
-        blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-        blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=file_name)
+        blob_service_client = BlobServiceClient.from_connection_string(connection_str)
+        blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
 
         # 파일을 Blob Storage에 업로드
         with open(file_path, "rb") as data:
             blob_client.upload_blob(data, overwrite=True)
 
         logging.info(f"✅ Blob Storage에 업로드 완료: {file_name}")
-        sas_url = generate_blob_download_link(file_name,blob_service_client=blob_service_client)
+        sas_url = generate_blob_download_link(file_name,blob_service_client=blob_service_client,container_name =container_name)
         return sas_url
     except Exception as e:
         logging.error(f"업로드 오류: {str(e)}")

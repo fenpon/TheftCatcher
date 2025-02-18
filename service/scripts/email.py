@@ -1,25 +1,19 @@
 # Note: DALL-E 3 requires version 1.0.0 of the openai-python library or later
 import os
-from dotenv import load_dotenv
+
 from openai import AzureOpenAI
 import json
  
 
  
-# .env 파일 로드
-load_dotenv()
-# 환경 변수 가져오기
-_api_version = os.getenv("dalle_api_version")
-_azure_endpoint = os.getenv("dalle_azure_endpoint")
-
-_api_key = os.getenv("dalle_api_key")
 
 
-def get_email_img():
+
+def get_email_img(version,endpoint,apikey):
     client = AzureOpenAI(
-        api_version=_api_version,
-        azure_endpoint=_azure_endpoint,
-        api_key=_api_key,
+        api_version=version,
+        azure_endpoint=endpoint,
+        api_key=apikey,
     )
     
     result = client.images.generate(
