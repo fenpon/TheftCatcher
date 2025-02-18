@@ -17,7 +17,7 @@ from reportlab.lib.enums import TA_JUSTIFY
 from datetime import datetime,timedelta
 from PIL import Image as PILImage
 import pytz
-import markdown2
+import markdown
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -144,7 +144,7 @@ def add_background(c,doc):
 
 def convert_markdown_to_paragraphs(md_text, style):
     """ Markdown을 ReportLab용 Paragraph 리스트로 변환 """
-    html_text = markdown2.markdown(md_text)  # Markdown을 HTML로 변환
+    html_text = markdown.markdown(md_text)  # Markdown을 HTML로 변환
     lines = html_text.split("\n")  # 줄 단위 분리
     
     paragraphs = []
