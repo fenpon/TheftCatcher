@@ -51,7 +51,7 @@ def draw_bounding_box(idx, img,cuts):
             x2 = now[3]
             y2 = now[4]
 
-            cv2.rectangle(img, (x1, y1), (x2,y2), (0, 0, 255), 10)
+            cv2.rectangle(img, (x1, y1), (x2,y2), (0, 0, 255), 15)
             
         cv2.putText(img, "Theft Detection", (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         return img

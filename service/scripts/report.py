@@ -254,7 +254,7 @@ def make_pdf(text,predicts_img):
         if ii % 2 == 0:
             ii = 0
             content.append(PageBreak())
-
+          
             title_style = ParagraphStyle(
                 "TitleStyle",
                 parent=style_korean,
@@ -264,7 +264,7 @@ def make_pdf(text,predicts_img):
                 textColor="black",
                 bold=True
             )
-            content.append(Paragraph("Theft Detection Scene", title_style))
+            content.append(Paragraph("절도 탐지 장면", title_style))
 
             content.append(Spacer(1, 10))  # 문단 간 간격 추가
 
