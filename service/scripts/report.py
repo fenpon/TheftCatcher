@@ -5,6 +5,7 @@ import tempfile
 import cv2
 import io
 import os
+import platform
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,6 +20,7 @@ from PIL import Image as PILImage
 import pytz
 import markdown
 import sys
+import subprocess
 sys.stdout.reconfigure(encoding='utf-8')
 
 
@@ -178,6 +180,35 @@ def convert_markdown_to_paragraphs(md_text, style):
         paragraphs.append(Spacer(1, 10))  # 문단 간 간격 추가
 
     return paragraphs
+
+#GhostScripts 설치 필요
+def convert_to_pdfa(input_pdf):
+    """PDF를 PDF/A로 변환"""
+    output_pdfa = input_pdf.replace(".pdf", "_pdfa.pdf")
+    
+    # Windows는 gswin64c, 다른 OS는 gs 사용
+    gs_executable = "gswin64c" if platform.system() == "Windows" else "gs"
+    gs_command = [
+        gs_executable,
+        "-dPDFA",
+        "-dBATCH",
+        "-dNOPAUSE",
+        "-sDEVICE=pdfwrite",
+        "-sOutputFile=" + output_pdfa,
+        "-dPDFACompatibilityPolicy=1",
+        "-dEmbedAllFonts=true",
+        "-dSubsetFonts=false",
+        input_pdf
+    ]
+    
+    try:
+        subprocess.run(gs_command, check=True)
+        print(f"✅ PDF/A 변환 성공: {output_pdfa}")
+        return output_pdfa
+    except subprocess.CalledProcessError as e:
+        print("⚠️ PDF/A 변환 실패:", e)
+        return input_pdf  # 변환 실패 시 원본 반환
+
 def make_pdf(text,predicts_img):
     title = "절도 방지 대책 보고서"  # 문서 제목
     # ✅ 임시 PDF 파일 생성
@@ -264,14 +295,17 @@ def make_pdf(text,predicts_img):
         onFirstPage=add_cover_page,
         onLaterPages=add_background
     )
+
+    # ✅ PDF/A 변환
+    pdfa_path = convert_to_pdfa(temp_pdf_path)
     
     # 서울 (KST) 시간
     kst = pytz.timezone("Asia/Seoul")
     now_kst = datetime.now(kst)
    
-    download_link = upload_to_blob_storage(temp_pdf_path, f"report_{now_kst.strftime('%Y-%m-%d_%H-%M-%S')}.pdf")
+    download_link = upload_to_blob_storage(pdfa_path, f"report_{now_kst.strftime('%Y-%m-%d_%H-%M-%S')}.pdf")
     
-    print(f"PDF 생성 완료: {temp_pdf_path}")
+    print(f"PDF 생성 완료: {pdfa_path}")
     return download_link
 
 def generate_blob_download_link(file_name,blob_service_client, expiry_hours=72):
