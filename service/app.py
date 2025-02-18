@@ -6,6 +6,7 @@ import os
 from execute import predict
 import scripts.videos as vs
 import scripts.report as rp
+import scripts.email as em
 
 app = Flask(__name__)
 
@@ -45,13 +46,21 @@ def get_detect():
 
     predicts_img = vs.detect_test(video_bytes,cuts=cut_imgs)
     report_result = rp.report_analyze(predictions,location)
+
+    report_result = report_result.encode("utf-8").decode("utf-8")
     report_url = rp.make_pdf(report_result,predicts_img)
    
 
 
     return json.dumps({"result": True, "data": predictions, "report_url": report_url}, ensure_ascii=False, default=str), 200
 
-
+@app.route('/email_img', methods=['POST'])
+def email_img():
+    try:
+        result = em.get_email_img()  # em.get_email_img()가 이미지 데이터를 반환한다고 가정
+        return jsonify({"result": True, "data": result}), 200
+    except Exception as e:
+        return jsonify({"result": False, "error": str(e)}), 500
 
 
 @app.route('/test', methods=['POST'])

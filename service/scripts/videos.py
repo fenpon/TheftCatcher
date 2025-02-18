@@ -37,22 +37,6 @@ def video_bytes_to_images(video_bytes):
     
 
 def draw_bounding_box(idx, img,cuts):
-  
-        """
-        x = int(prediction['x'])
-        y = int(prediction['y'])
-        width = int(prediction['width'])
-        height = int(prediction['height'])
-        confidence = prediction['confidence']
-        class_name = prediction['class']
-        
-        # 좌표 계산
-        x1 = x - width // 2
-        y1 = y - height // 2
-        x2 = x + width // 2
-        y2 = y + height // 2
-
-        """
         # 바운딩 박스 그리기
 
         for now in cuts:
@@ -67,9 +51,9 @@ def draw_bounding_box(idx, img,cuts):
             x2 = now[3]
             y2 = now[4]
 
-            cv2.rectangle(img, (x1, y1), (x2,y2), (255, 0, 0), 6)
+            cv2.rectangle(img, (x1, y1), (x2,y2), (0, 0, 255), 10)
             
-        cv2.putText(img, "Theft", (0,0), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.putText(img, "Theft Detection", (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         return img
 
 # 결과 영상 저장 함수

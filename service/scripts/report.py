@@ -17,7 +17,7 @@ from reportlab.lib.enums import TA_JUSTIFY
 from datetime import datetime,timedelta
 from PIL import Image as PILImage
 import pytz
-import markdown
+import markdown2
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -45,9 +45,12 @@ CONTAINER_NAME = os.getenv("CONTAINER_NAME")
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-font_path = os.path.join(base_dir, "font", "NanumGothic-Regular.ttf")
+font_path = os.path.join(base_dir, "font", "NanumGothic.ttf")
+print(font_path)
 
 pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
+pdfmetrics.registerFontFamily("NanumGothic", normal="NanumGothic", bold="NanumGothic", italic="NanumGothic")
+
 FONT_NAME = "NanumGothic"
 FONT_SIZE = 12  # 본문 폰트 크기
 TITLE_SIZE = 18  # 제목 폰트 크기
@@ -141,7 +144,7 @@ def add_background(c,doc):
 
 def convert_markdown_to_paragraphs(md_text, style):
     """ Markdown을 ReportLab용 Paragraph 리스트로 변환 """
-    html_text = markdown.markdown(md_text)  # Markdown을 HTML로 변환
+    html_text = markdown2.markdown(md_text)  # Markdown을 HTML로 변환
     lines = html_text.split("\n")  # 줄 단위 분리
     
     paragraphs = []
@@ -176,7 +179,6 @@ def convert_markdown_to_paragraphs(md_text, style):
 
     return paragraphs
 def make_pdf(text,predicts_img):
-    print(text)
     title = "절도 방지 대책 보고서"  # 문서 제목
     # ✅ 임시 PDF 파일 생성
     temp_fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf")
@@ -185,14 +187,14 @@ def make_pdf(text,predicts_img):
     # ✅ PDF 문서 설정
     doc = SimpleDocTemplate(temp_pdf_path, pagesize=A4,
                             rightMargin=MARGIN, leftMargin=MARGIN,
-                            topMargin=MARGIN, bottomMargin=MARGIN)
+                            topMargin=MARGIN, bottomMargin=MARGIN,encoding="utf-8")
     
     styles = getSampleStyleSheet()
     # ✅ 한글이 깨지지 않도록 스타일 수정
     style_korean = ParagraphStyle(
         "KoreanStyle",
         parent=styles["Normal"],
-        fontName="NanumGothic",  # ✅ 한글 폰트 사용
+        fontName=FONT_NAME,  # ✅ 한글 폰트 사용
         fontSize=12,
         leading=18,  # 줄 간격 설정
         alignment=TA_JUSTIFY  # 양쪽 정렬
@@ -237,6 +239,9 @@ def make_pdf(text,predicts_img):
 
         # OpenCV 이미지를 PIL 이미지로 변환
         img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)  # BGR → RGB 변환
+        height, width, _ = img_rgb.shape
+        ratio = height/width  
+
         pil_img = PILImage.fromarray(img_rgb)
 
         # PIL 이미지를 BytesIO에 저장
@@ -245,10 +250,10 @@ def make_pdf(text,predicts_img):
         img_buffer.seek(0)
 
         # ReportLab 이미지 객체 생성
-        img = Image(img_buffer, width=400, height=300)  # 이미지 크기 조절 가능
+        img = Image(img_buffer, width=480, height=480*ratio)  # 이미지 크기 조절 가능
        
         content.append(img)
-        content.append(Spacer(1, 10))  # 문단 간 간격 추가
+        content.append(Spacer(1, 20))  # 문단 간 간격 추가
         #content.append(PageBreak())  # 각 이미지마다 페이지 나누기 (필요에 따라 조절 가능)
         ii += 1
   
