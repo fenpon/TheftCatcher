@@ -158,7 +158,7 @@ def predict(file_path):
     
     cut_imgs = display_predict(prediction_arrays,video,detections_df,fps=fps[0],now_time = now_time)
     return_text = make_response(prediction_arrays,fps=fps[0])
-    return return_text,cut_imgs
+    return return_text,cut_imgs,fps[0]
     
 def display_predict(predictions,video_frames,detections_df,fps,now_time):
     

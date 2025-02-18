@@ -244,12 +244,12 @@ def make_pdf(text,predicts_img,connection_str,container_name):
     ii = 0
     # ✅ OpenCV 이미지 변환 후 추가
     
-    for img_cv in predicts_img:
+    for img_cv,now_time in predicts_img:
         if ii % 2 == 0:
             ii = 0
             content.append(PageBreak())
           
-            title_style = ParagraphStyle(
+        title_style = ParagraphStyle(
                 "TitleStyle",
                 parent=style_korean,
                 fontSize=14,
@@ -257,10 +257,10 @@ def make_pdf(text,predicts_img,connection_str,container_name):
                 alignment=TA_JUSTIFY,
                 textColor="black",
                 bold=True
-            )
-            content.append(Paragraph("절도 탐지 장면", title_style))
+        )
+        content.append(Paragraph(f"{now_time:.2f}초의 절도 장면", title_style))
 
-            content.append(Spacer(1, 10))  # 문단 간 간격 추가
+        content.append(Spacer(1, 10))  # 문단 간 간격 추가
 
         # OpenCV 이미지를 PIL 이미지로 변환
         img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)  # BGR → RGB 변환

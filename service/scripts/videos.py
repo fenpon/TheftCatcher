@@ -53,7 +53,7 @@ def draw_bounding_box(idx, img,cuts):
 
             cv2.rectangle(img, (x1, y1), (x2,y2), (0, 0, 255), 15)
             
-        cv2.putText(img, "Theft Detection", (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.putText(img, "Shoplifting", (x1, y1-30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
         return img
 
 # 결과 영상 저장 함수
@@ -84,7 +84,7 @@ def images_to_video(image_list, output_file, fps=15):
     print(f"영상이 {output_file}로 저장되었습니다.")
 
 
-def detect_test(video_bytes,cuts):
+def detect_test(video_bytes,cuts,fps):
     results_img = []
     
    
@@ -103,7 +103,8 @@ def detect_test(video_bytes,cuts):
                 able = True
         if able:
             now_img = draw_bounding_box(idx,img,cuts)
-            results_img.append(now_img)
+            frame_time = 1 / fps if fps > 0 else 0  # 1프레임당 시간 (초)
+            results_img.append((now_img,idx*frame_time))
  
     #now_img = draw_bounding_box(image,predict)
     #report_text = f"영상 {video_filename} 의 예측 결과입니다 " 

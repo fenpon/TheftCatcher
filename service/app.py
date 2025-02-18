@@ -63,12 +63,12 @@ def get_detect():
     # -> yolo 사람, 인식한 bone , 행동 인식 결과(최종 결과 영상)
     
     # ✅ Pass file path to `predict`
-    predictions,cut_imgs = predict(file_path)
+    predictions,cut_imgs,fps = predict(file_path)
    
 
         
 
-    predicts_img = vs.detect_test(video_bytes,cuts=cut_imgs)
+    predicts_img = vs.detect_test(video_bytes,cuts=cut_imgs,fps=fps)
     report_result = rp.report_analyze(predictions,location,API_KEY,ENDPOINT)
 
     report_result = report_result.encode("utf-8").decode("utf-8")
