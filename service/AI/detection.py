@@ -6,6 +6,7 @@ import numpy as np
 
 from ultralytics import YOLO
 import torch
+import logging
 
 
 class Detection:
@@ -13,7 +14,7 @@ class Detection:
     
     def detect_from_frames(video_frames,start_video_idx,now_time, is_predict =False,labels=None, model_path="yolov8l.pt", output_dir="output_images"):
             #gpu 사용 설정 안되어 있음
-            print("---- Object Detection 시작 ----")
+            logging.info("---- Object Detection 시작 ----")
             # YOLO 모델 로드
             # GPU 설정 및 YOLO 모델 로드
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -21,8 +22,8 @@ class Detection:
             # Load a model
          
            
-            print(f"Is CUDA available? {torch.cuda.is_available()}")
-            print(f"Using device: {model.device}")  # 사용 중인 디바이스 출력 (cuda 또는 cpu)
+            logging.info(f"Is CUDA available? {torch.cuda.is_available()}")
+            logging.info(f"Using device: {model.device}")  # 사용 중인 디바이스 출력 (cuda 또는 cpu)
             keys_with_person = 0
             for key, value in model.names.items() :
                 if value == "person":
@@ -31,11 +32,11 @@ class Detection:
           
             persons = []
             objects = []
-
+            
             for video_idx, frames in enumerate(video_frames):
                 #video_output_dir = os.path.join(output_dir, f"video_{video_idx}")
                 #os.makedirs(video_output_dir, exist_ok=True)
-                print(f"Processing Detection video : {video_idx + 1}/{len(video_frames)} // {start_video_idx}...")
+                logging.info(f"Processing Detection video : {video_idx + 1}/{len(video_frames)} // {start_video_idx}...")
                 finDectionFrames = []
                 for frame_idx, frame in enumerate(frames):
                     # YOLO 객체 탐지 수행
@@ -64,6 +65,9 @@ class Detection:
                             x2 = min(frame.shape[1], x2 + space)
                             y2 = min(frame.shape[0], y2 + space)
 
+                            center_x = int((x1+x2) / 2)
+                            center_y = int((y1+y2) / 2)
+
                             cropped_image = frame[y1:y2, x1:x2]  # 바운딩 박스 영역만큼 이미지 자르기
                             
                             detect_wrap = {
@@ -87,9 +91,9 @@ class Detection:
             objects_classified_df = pd.DataFrame(columns=['video_idx', 'frame_idx', 'detection_idx', 'class', 'confidence', 'x1', 'y1', 'x2', 'y2'],data=objects)
             
            
-            Detection.save_detected_video(classified_df,now_time,is_predict)
+            #Detection.save_detected_video(classified_df,now_time,is_predict)
           
-            print(f"---- Object Detection 완료 : ----  ")
+            logging.info(f"---- Object Detection 완료 : ----  ")
 
             return classified_df,objects_classified_df
     

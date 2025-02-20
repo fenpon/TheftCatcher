@@ -3,6 +3,7 @@ import os
 
 from openai import AzureOpenAI
 import json
+import logging
  
 
  
@@ -24,5 +25,5 @@ def get_email_img(version,endpoint,apikey):
     
     image_url = json.loads(result.model_dump_json())['data'][0]['url']
     
-    print(image_url)
+    logging.info(image_url)
     return image_url

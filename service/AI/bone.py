@@ -6,6 +6,7 @@ import cv2
 import torch
 import numpy as np
 from mmpose.apis import inference_topdown, init_model
+import logging
 
 # GPU 강제 실행 설정
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # 첫 번째 GPU 사용
@@ -72,7 +73,7 @@ class Bone:
         ii = 0  
         for (video_idx, detection_idx, cls), group  in grouped:
             ii+=1
-            print(f'{ii}/{len(grouped.groups)}')
+            logging.info(f'{ii}/{len(grouped.groups)}')
             
             #print(f"video_idx={video_idx}, detection_idx={detection_idx}, class={cls} , Max  : {max_count}")
             for idx, row in group.iterrows():
@@ -112,8 +113,8 @@ class Bone:
                         draws.append((x,y))
                     landmark_data.append(new_row)  # 업데이트된 데이터를 landmark_data에 추가
 
-                    image_rgb = Bone.DrawBone(image_rgb,draws)
-                    Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict,now_time)
+                    #image_rgb = Bone.DrawBone(image_rgb,draws)
+                    #Bone.save_detected_video(video_idx, detection_idx, cls,row['frame_idx'],image_rgb,is_predict,now_time)
 
                 #print(results)
                 """
@@ -155,9 +156,9 @@ class Bone:
         #print(landmark_df)
         return landmark_df
     def filter_bone_data(bone_df,cropped_labels):
-        print(bone_df)
-        print("------")
-        print(cropped_labels) #openpose landmark 포맷같음
+        logging.info(bone_df)
+        logging.info("------")
+        logging.info(cropped_labels) #openpose landmark 포맷같음
 
     def DrawBone(image,draws):
         #print(f"Draw Bone {draws}")

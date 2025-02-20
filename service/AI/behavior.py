@@ -8,6 +8,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader,WeightedRandomSampler
 import numpy as np
+import logging
 
 from .bone import selected_keypoints
 
@@ -150,7 +151,7 @@ class Behavior:
     # 하이퍼파라미터 설정
     
     def predict(predict_images):
-        print("--- 행동 예측 시작 ---")
+        logging.info("--- 행동 예측 시작 ---")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = Behavior.load(device)
 
@@ -203,7 +204,7 @@ class Behavior:
                         val = x_i[i]
                         result.append((val[0]+j,val[1]))
                     result_arr.append((x_i[i][0],x_i[i][0]+input_size-1,x_i[i][1]))
-            print(ratio)  
+            logging.info(ratio)  
                 #print(now)
                 #now = now.reset_index(drop=True)
               
@@ -215,11 +216,11 @@ class Behavior:
               
 
         #print(result)
-        print("--- ✅ 행동 예측 완료 ---")
+        logging.info("--- ✅ 행동 예측 완료 ---")
         return result,result_arr
       
     def learn(learn_images, learn_labels,model):
-        print("--- 행동 학습 시작 ---")
+        logging.info("--- 행동 학습 시작 ---")
      
         #print(learn_labels)
  
@@ -312,7 +313,7 @@ class Behavior:
 
         torch.backends.mkldnn.enabled = False
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f'device : {device}')
+        logging.info(f'device : {device}')
         x = [row[1] for row in merged_features]  # 입력 데이터
         y = [row[0] for row in merged_features]  # 입력 데이터
     
@@ -347,12 +348,11 @@ class Behavior:
         criterion = nn.CrossEntropyLoss(weight=weight).to(device)#정상 행동, 절도 행위
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,weight_decay=0.001, amsgrad=True)
      
-        print("-- 훈련 시작 ---")
+        logging.info("-- 훈련 시작 ---")
         for epoch in range(num_epochs):
-            print(f"-- Epochs : {epoch} ---")
+            logging.info(f"-- Epochs : {epoch} ---")
             model.train()
-            
-            print(f"// --- Epochs {epoch} --- //")
+
             #모든 데이터셋을 순환하지만 GPU에 배치 크기 별로 넣어서 학습하는 방식
             for batch_idx ,( inputs, targets) in enumerate(dataloader):
                         inputs, targets = inputs.to(device), targets.to(device)
@@ -364,8 +364,8 @@ class Behavior:
                         optimizer.zero_grad()
                         output = model(inputs)
                         ratio = torch.nn.functional.softmax(output, dim=1)  # 확률 값 반환   
-                        print(targets)
-                        print(ratio) 
+                        logging.info(targets)
+                        logging.info(ratio) 
                         labels = [targets[i] for i in range(len(output))]
                         # Convert labels to a tensor if they are a list
                         if isinstance(labels, list):
@@ -378,9 +378,9 @@ class Behavior:
                                              
                         loss.backward()
                         optimizer.step()
-                        print(f"Loss : {loss.item()}")
-        print(f"학습 가중치 : {weight}")
-        print("--- 행동 학습 완료 ---")   
+                        logging.info(f"Loss : {loss.item()}")
+        logging.info(f"학습 가중치 : {weight}")
+        logging.info("--- 행동 학습 완료 ---")   
         return model;
     
     def load(device):
