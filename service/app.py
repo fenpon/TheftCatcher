@@ -103,6 +103,14 @@ def email_img():
         return jsonify({"result": True, "url": result}), 200
     except Exception as e:
         return jsonify({"result": False, "error": str(e)}), 500
+    
+@app.route('/fail_img', methods=['POST'])
+def fail_img():
+    try:
+        result = em.get_fail_img(DALLE_VERSION,DALLE_ENDPOINT,DALLE_APIKEY)  # em.get_email_img()가 이미지 데이터를 반환한다고 가정
+        return jsonify({"result": True, "url": result}), 200
+    except Exception as e:
+        return jsonify({"result": False, "error": str(e)}), 500
 
 
 @app.route('/test', methods=['POST'])
