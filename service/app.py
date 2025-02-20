@@ -39,7 +39,7 @@ app = Flask(__name__)
 worker_id = str(os.getpid())
 
 # 로그 파일 설정
-LOG_FILE = f"/var/log/flask_app_{worker_id}.log"
+LOG_FILE = f"./debug/log_{worker_id}.log"
 
 logging.basicConfig(
     filename=LOG_FILE,  # 로그 저장 위치

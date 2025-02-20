@@ -14,6 +14,7 @@ import gc
 import os
 import json
 from datetime import datetime
+import logging
 
  
     
@@ -54,13 +55,13 @@ def train():
     folder_path = './original'
     
     if not os.path.exists(folder_path):
-            print(f"Folder '{folder_path}' does not exist. Creating it now.")
+            logging.info(f"Folder '{folder_path}' does not exist. Creating it now.")
             #DataController.download() #원본 데이터 다운로드
     else:
-            print(f"Folder '{folder_path}' already exists.")
+            logging.info(f"Folder '{folder_path}' already exists.")
     
     train_videos_path = DataController.get_train_video_paths() #원본 데이터에서 학습용 비디오 경로 가져옴
-    print(f"총 {len(train_videos_path)}개의 비디오 파일이 발견되었습니다")
+    logging.info(f"총 {len(train_videos_path)}개의 비디오 파일이 발견되었습니다")
     download_time = 0.0
     detection_time = 0.0
     bone_time = 0.0
@@ -71,7 +72,7 @@ def train():
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
     pose_model = Bone.LoadPoseModel() #포즈 모델 로드
     for idx , video_paths in enumerate(train_videos_path): # 한번에 불러오면 메모리가 못버텨서 파일을 20개씩 쪼개서 불러옴
-        print(f"현재 파일 인덱스 : {idx}")
+        logging.info(f"현재 파일 인덱스 : {idx}")
         train_videos,train_fps =   DataController.get_train_video(video_paths) #원본 데이터에서 학습용 비디오 가져옴
 
 
@@ -117,7 +118,7 @@ def train():
     timeReport["bone"] = bone_time
     timeReport["behavior"] = behavior_time
     update_json(file_path, timeReport)  # JSON 파일 업데이트
-    print("훈련 완료 ")
+    logging.info("훈련 완료 ")
     
 def predict(file_path):
     now_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -130,7 +131,7 @@ def predict(file_path):
 
     video,fps = DataController.get_video(file_path)
     if video is None:
-        print("비디오 파일을 불러오는데 실패했습니다.")
+        logging.info("비디오 파일을 불러오는데 실패했습니다.")
         return
     labels_df = DataController.GetLabel() #원본 데이터에서 학습용 라벨 가져옴
 
@@ -175,10 +176,10 @@ def display_predict(predictions,video_frames,detections_df,fps,now_time):
     frame_size = (video_frames[0][0].shape[1], video_frames[0][0].shape[0])  # (width, height)
     output_path =  f"{output_folder}/predict.mp4"
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 코덱 설정
-    print(predictions)
+    logging.info(predictions)
     video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
     for video_idx, frames in enumerate(video_frames):
-                print(f"Debug Predict Video : {video_idx + 1}/{len(video_frames)}...")
+                logging.info(f"Debug Predict Video : {video_idx + 1}/{len(video_frames)}...")
                 
                 finDectionFrames = []
                 for frame_idx, frame in enumerate(frames):
