@@ -9,6 +9,7 @@ from execute import predict
 import scripts.videos as vs
 import scripts.report as rp
 import scripts.email as em
+import logging
 
 from dotenv import load_dotenv
 
@@ -31,6 +32,25 @@ DALLE_APIKEY = os.getenv("DALLE_APIKEY")
 
 
 app = Flask(__name__)
+
+
+
+
+worker_id = str(os.getpid())
+
+# 로그 파일 설정
+LOG_FILE = f"/var/log/flask_app_{worker_id}.log"
+
+logging.basicConfig(
+    filename=LOG_FILE,  # 로그 저장 위치
+    level=logging.INFO,  # 로그 레벨 (INFO 이상만 저장)
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    encoding="utf-8"
+)
+
+# Flask 로거에 핸들러 추가 (Flask 내부에서도 동일한 설정 사용)
+app.logger.addHandler(logging.FileHandler(LOG_FILE))
+app.logger.setLevel(logging.INFO)
 
 
 
