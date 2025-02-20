@@ -104,6 +104,7 @@ def report_analyze(video_report, location,API_KEY,endpoint):
 
     except requests.RequestException as e:
         logging.error(f"요청 중 오류 {e}")
+        return None
 
 
 
