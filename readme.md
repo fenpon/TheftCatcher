@@ -1,5 +1,11 @@
 ## 절도 감지 AI 프로젝트
 
+동작 원리 : 손목, 팔꿈치, 어깨 관절의 역학적 정보를 통해 절도 행동을 판정하고 있다.
+
+
+
+## 프로젝트 세팅
+
 1. pose_model을 TheftCatcher/service 위치에 저장
 2. theft_detection_model.pth 파일을 TheftCatcher/service/export 위치에 저장
 
