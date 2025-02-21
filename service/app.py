@@ -90,8 +90,11 @@ def get_detect():
 
     if report_result is None:
         return json.dumps({"result": False, "error":"OpenAI 실패!"}, ensure_ascii=False, default=str), 500
-
-    report_result = report_result.encode("utf-8").decode("utf-8")
+    try:
+        report_result = report_result.encode("utf-8").decode("utf-8")
+    except Exception as e:
+        return json.dumps({"result": False, "error":"OpenAI 실패!"}, ensure_ascii=False, default=str), 500
+    
     report_url = rp.make_pdf(report_result,predicts_img,AZURE_STORAGE_CONNECTION_STRING,CONTAINER_NAME)
 
     return json.dumps({"result": True, "data": predictions, "report_url": report_url}, ensure_ascii=False, default=str), 200
